@@ -174,10 +174,10 @@ export default function Home() {
                 Helsinki this month →
               </Link>
               <Link
-                href="/rovaniemi/december"
+                href="/anchorage/december"
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
               >
-                Rovaniemi in December
+                Anchorage in December
               </Link>
               <Link
                 href="/sydney/january"
