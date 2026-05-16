@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0B1220;
+  color: #FFFFFF;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes sun-pulse {
+  0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 194, 77, 0.55)); }
+  50%      { filter: drop-shadow(0 0 22px rgba(255, 194, 77, 0.85)); }
+}
+
+.sun-pulse {
+  animation: sun-pulse 3.6s ease-in-out infinite;
+}
