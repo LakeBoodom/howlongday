@@ -6,11 +6,14 @@ import { HeroSky } from '@/components/HeroSky'
 import { DataCards } from '@/components/DataCards'
 import { SecondaryRow } from '@/components/SecondaryRow'
 import { SeoSection } from '@/components/SeoSection'
+import { YearlyDaylight } from '@/components/YearlyDaylight'
 
 import { getCityBySlug, getTopCities, type City } from '@/lib/cities'
 import {
   getSolarSnapshot,
   getMaxDaylight,
+  getYearlyDaylight,
+  dayOfYearUTC,
   formatLocalDate,
   formatLocalTime,
   formatDuration,
@@ -115,8 +118,11 @@ export default function CityPage({ params }: { params: Params }) {
   const now = new Date()
   const snap = getSolarSnapshot(now, city.lat, city.lon)
   const sky = getSkyGradient(snap.elevationDeg, snap.isAfterNoon)
-  const maxDaylight = getMaxDaylight(city.lat, city.lon, now.getUTCFullYear())
+  const year = now.getUTCFullYear()
+  const maxDaylight = getMaxDaylight(city.lat, city.lon, year)
   const daylightPct = maxDaylight > 0 ? (snap.daylightSeconds / maxDaylight) * 100 : 0
+  const yearlyDaylight = getYearlyDaylight(city.lat, city.lon, year)
+  const todayIndex = dayOfYearUTC(now)
   const monthLabel = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     timeZone: city.timezone,
@@ -179,6 +185,13 @@ export default function CityPage({ params }: { params: Params }) {
         snap={snap}
         monthLabel={monthLabel}
         isHighLatitude={isHighLatitude}
+      />
+
+      <YearlyDaylight
+        data={yearlyDaylight}
+        todayIndex={todayIndex}
+        year={year}
+        cityName={city.name}
       />
 
       {/* Features bar */}

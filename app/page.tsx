@@ -1,14 +1,22 @@
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
+import { YearlyDaylight } from '@/components/YearlyDaylight'
 import { getCityBySlug } from '@/lib/cities'
 import {
   getSolarSnapshot,
+  getYearlyDaylight,
+  dayOfYearUTC,
   formatLocalTime,
   formatDuration,
 } from '@/lib/astronomy'
 import { getSkyGradient } from '@/lib/sky'
 
 export const revalidate = 3600
+
+const MONTH_SLUGS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+]
 
 // Featured cities, hand-picked to span the latitude range
 const FEATURED = [
@@ -24,9 +32,13 @@ const FEATURED = [
 
 export default function Home() {
   const now = new Date()
+  const year = now.getUTCFullYear()
   const helsinki = getCityBySlug('helsinki')!
   const snap = getSolarSnapshot(now, helsinki.lat, helsinki.lon)
   const sky = getSkyGradient(snap.elevationDeg, snap.isAfterNoon)
+  const yearlyHelsinki = getYearlyDaylight(helsinki.lat, helsinki.lon, year)
+  const todayIndex = dayOfYearUTC(now)
+  const currentMonthSlug = MONTH_SLUGS[now.getUTCMonth()]
 
   return (
     <main className="min-h-screen">
@@ -127,6 +139,53 @@ export default function Home() {
             <Snap label="Sunset" value={formatLocalTime(snap.sunset, helsinki.timezone)} color="text-sunset" />
             <Snap label="Solar Noon" value={formatLocalTime(snap.solarNoon, helsinki.timezone)} />
             <Snap label="Daylight" value={formatDuration(snap.daylightSeconds)} color="text-daylight" />
+          </div>
+        </div>
+      </section>
+
+      {/* Yearly daylight chart preview for Helsinki */}
+      <YearlyDaylight
+        data={yearlyHelsinki}
+        todayIndex={todayIndex}
+        year={year}
+        cityName={helsinki.name}
+      />
+
+      {/* Calendar feature CTA */}
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent p-8 sm:p-10">
+            <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-daylight">
+              Now: month-by-month calendars
+            </p>
+            <h2 className="mt-3 text-balance text-2xl font-semibold text-white sm:text-3xl">
+              See how daylight changes month-by-month in any city
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-neutral-2">
+              A full sunrise / sunset / daylight grid for every day of the
+              month, with the longest and shortest days called out. Helpful for
+              trip planning, photography, or anyone tracking the seasons.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href={`/helsinki/${currentMonthSlug}`}
+                className="inline-flex items-center gap-2 rounded-full bg-daylight px-5 py-2 text-sm font-semibold text-bg-deepest transition hover:brightness-110"
+              >
+                Helsinki this month →
+              </Link>
+              <Link
+                href="/rovaniemi/december"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+              >
+                Rovaniemi in December
+              </Link>
+              <Link
+                href="/sydney/january"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+              >
+                Sydney in January
+              </Link>
+            </div>
           </div>
         </div>
       </section>
