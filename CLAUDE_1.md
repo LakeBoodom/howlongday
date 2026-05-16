@@ -336,14 +336,22 @@ Auto-generated XML sitemap → submit to Search Console on launch.
 
 ## Launch checklist
 - [x] Domain: howlongday.com registered
-- [ ] Cloudflare DNS configured
-- [ ] Vercel project → GitHub (LakeBoodom)
-- [ ] 50k pages building without errors
-- [ ] Dynamic sky: tested for day / golden / blue / night states
-- [ ] Sun arc position accurate (test: Helsinki, Dubai, Reykjavik, Singapore, Tromsø)
-- [ ] Midnight sun + polar night badges rendering
-- [ ] Core Web Vitals green
-- [ ] Sitemap submitted to Google Search Console
-- [ ] AdSense approved + units placed
-- [ ] FAQPage schema validated (Rich Results Test)
-- [ ] robots.txt allows full indexing
+- [x] DNS configured (Vercel nameservers, all DNS in Vercel)
+- [x] Vercel project → GitHub (LakeBoodom/howlongday, autodeploy on main)
+- [x] 50k pages building without errors (top 1000 + top 100 × 12 months prebuilt, rest ISR)
+- [x] Dynamic sky: tested for day / golden / blue / night states
+- [x] Sun arc position accurate (Helsinki, Dubai, Reykjavik, Singapore, Tromsø verified)
+- [x] Midnight sun + polar night badges rendering
+- [x] Yearly daylight chart on city pages
+- [x] /[city]/[month] sub-pages with day-by-day calendar
+- [x] Sitemap index + /sitemap/cities.xml + /sitemap/months.xml
+- [x] FAQPage + BreadcrumbList JSON-LD on city + month pages
+- [x] CitySearch client-side autocomplete (top 5000 + curated extras)
+- [x] Per-page same-country popular pills
+- [x] Branded 404 page with search
+- [x] Privacy policy page + footer link
+- [x] robots.txt allows full indexing, references /sitemap.xml
+- [ ] Core Web Vitals green — run PageSpeed Insights after launch
+- [ ] Sitemap submitted to Google Search Console (manual: search.google.com/search-console)
+- [ ] FAQPage + BreadcrumbList validated (Rich Results Test — manual: search.google.com/test/rich-results)
+- [ ] AdSense approved + units placed — apply 2-3 months after launch when site has organic traffic, add Cookie Consent banner at same time

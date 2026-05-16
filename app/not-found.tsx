@@ -81,7 +81,10 @@ export default function NotFound() {
       <footer className="border-t border-white/5 bg-bg-deepest">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm text-neutral-4 md:flex-row">
           <Logo variant="icon" />
-          <p>© {new Date().getFullYear()} HowLongDay.</p>
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="hover:text-white">Privacy</Link>
+            <p>© {new Date().getFullYear()} HowLongDay.</p>
+          </div>
         </div>
       </footer>
     </main>

@@ -37,6 +37,15 @@ interface SearchCity {
 
 const TOP_N = 5000
 
+/**
+ * Hand-curated extras — small places that wouldn't make the top-N cut by
+ * population alone but matter to Heikki or to specific user cohorts.
+ * Slugs must exist in data/cities.json.
+ */
+const EXTRA_SLUGS = [
+  'ristiina', // Heikki spends a lot of time there
+]
+
 const root = process.cwd()
 const inPath = join(root, 'data', 'cities.json')
 const outDir = join(root, 'public')
@@ -48,7 +57,28 @@ const all = JSON.parse(readFileSync(inPath, 'utf8')) as City[]
 // Defensive resort to guarantee that invariant.
 all.sort((a, b) => b.population - a.population)
 
-const top: SearchCity[] = all.slice(0, TOP_N).map((c) => ({
+const seen = new Set<string>()
+const selected: City[] = []
+for (const c of all.slice(0, TOP_N)) {
+  if (!seen.has(c.slug)) {
+    seen.add(c.slug)
+    selected.push(c)
+  }
+}
+// Append hand-curated extras (dedup against the top-N list)
+const bySlug = new Map(all.map((c) => [c.slug, c]))
+for (const slug of EXTRA_SLUGS) {
+  if (seen.has(slug)) continue
+  const c = bySlug.get(slug)
+  if (!c) {
+    console.warn(`[search-index] EXTRA_SLUGS entry "${slug}" not in cities.json — skipped`)
+    continue
+  }
+  selected.push(c)
+  seen.add(slug)
+}
+
+const top: SearchCity[] = selected.map((c) => ({
   slug: c.slug,
   name: c.name,
   country: c.country,
