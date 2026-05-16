@@ -7,7 +7,7 @@ import { DataCards } from '@/components/DataCards'
 import { SecondaryRow } from '@/components/SecondaryRow'
 import { SeoSection } from '@/components/SeoSection'
 
-import { getCityBySlug, type City } from '@/lib/cities'
+import { getCityBySlug, getTopCities, type City } from '@/lib/cities'
 import {
   getSolarSnapshot,
   getMaxDaylight,
@@ -26,11 +26,12 @@ interface Params {
 }
 
 export async function generateStaticParams() {
-  // Pala 3: only Helsinki is prebuilt. Pala 4 expands to top 1000 cities.
-  return [{ city: 'helsinki' }]
+  // Prebuild the top 1000 cities by population. The remaining ~48k generate
+  // on first request via ISR (dynamicParams=true) and are cached for 1h.
+  return getTopCities(1000).map((c) => ({ city: c.slug }))
 }
 
-// Allow on-demand ISR for any other slug (Pala 4 will populate prebuilt list).
+// Any slug not in the prebuilt list is generated on-demand.
 export const dynamicParams = true
 
 export async function generateMetadata(
