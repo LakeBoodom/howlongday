@@ -77,7 +77,7 @@ function DaylightCard({
           }}
         />
       </div>
-      <div className="mt-2 text-[0.7rem] uppercase tracking-widecaps text-neutral-4">
+      <div className="mt-2 text-[0.7rem] uppercase tracking-widecaps text-daylight/80">
         {clampedPct.toFixed(0)}% of peak · {peakDateLabel}
       </div>
     </div>

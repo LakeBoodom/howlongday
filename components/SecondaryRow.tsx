@@ -42,7 +42,12 @@ function SmallCard({
 }
 
 function timeRange(a: Date, b: Date, timezone: string): string {
-  return `${formatLocalTime(a, timezone)} – ${formatLocalTime(b, timezone)}`
+  const aStr = formatLocalTime(a, timezone)
+  const bStr = formatLocalTime(b, timezone)
+  if (aStr === '—' && bStr === '—') return 'Continuous twilight'
+  if (aStr === '—') return `Until ${bStr}`
+  if (bStr === '—') return `From ${aStr}`
+  return `${aStr} – ${bStr}`
 }
 
 export function SecondaryRow({ snap, city, nextSolstice, localFact }: Props) {
