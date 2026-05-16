@@ -29,7 +29,7 @@ export default function NotFound() {
   return (
     <main className="min-h-screen">
       <section
-        className="relative overflow-hidden"
+        className="relative"
         style={{
           background:
             'linear-gradient(180deg, #0B1220 0%, #1a2545 40%, #2a5a8a 80%, #3AA0FF 100%)',

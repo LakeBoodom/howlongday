@@ -45,7 +45,7 @@ export default function Home() {
     <main className="min-h-screen">
       {/* Hero with live Helsinki sky */}
       <section
-        className="relative overflow-hidden"
+        className="relative"
         style={{ background: sky.gradient, minHeight: 'clamp(620px, 78vh, 820px)' }}
       >
         {/* horizon glow */}
