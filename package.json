@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:cities": "tsx scripts/build-cities.ts",
+    "build:search-index": "tsx scripts/build-search-index.ts",
     "test:astro": "tsx scripts/test-astronomy.ts",
     "start": "next start",
     "lint": "next lint"

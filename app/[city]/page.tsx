@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Logo } from '@/components/Logo'
@@ -8,7 +9,12 @@ import { SecondaryRow } from '@/components/SecondaryRow'
 import { SeoSection } from '@/components/SeoSection'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
 
-import { getCityBySlug, getTopCities, type City } from '@/lib/cities'
+import {
+  getCityBySlug,
+  getTopCities,
+  getCitiesByCountry,
+  type City,
+} from '@/lib/cities'
 import {
   getSolarSnapshot,
   getMaxDaylight,
@@ -96,6 +102,31 @@ function nextAstroEvent(now: Date) {
   return { label: 'Jun 21, 2026', daysAway: 0, kind: 'solstice' as const }
 }
 
+/**
+ * "Popular cities" pills on each city page.
+ * If the current city's country has at least 5 cities in the top-1k SSG set,
+ * show same-country siblings (max 11, excluding the current city).
+ * Otherwise fall back to a hand-picked international set.
+ */
+const FALLBACK_PILLS = [
+  'helsinki', 'tokyo', 'new-york-city', 'london',
+  'sydney', 'dubai', 'singapore', 'reykjavik',
+  'cape-town', 'rio-de-janeiro', 'los-angeles',
+]
+
+function getNearbyCities(city: City): City[] {
+  const sameCountry = getCitiesByCountry(city.countryCode)
+    .filter((c) => c.slug !== city.slug)
+    .sort((a, b) => b.population - a.population)
+    .slice(0, 11)
+  if (sameCountry.length >= 5) return sameCountry
+  // Sparse country — show curated international pills
+  return FALLBACK_PILLS
+    .filter((s) => s !== city.slug)
+    .map((s) => getCityBySlug(s))
+    .filter((c): c is City => c !== null)
+}
+
 function buildLocalFact(snap: SolarSnapshot, city: City): string {
   if (snap.isMidnightSun) return 'The sun stays above the horizon all 24 hours today.'
   if (snap.isPolarNight) return 'The sun does not rise above the horizon today.'
@@ -131,6 +162,7 @@ export default function CityPage({ params }: { params: Params }) {
   const nextEvent = nextAstroEvent(now)
   const localFact = buildLocalFact(snap, city)
   const isHighLatitude = Math.abs(city.lat) >= 66.5
+  const nearby = getNearbyCities(city)
 
   return (
     <>
@@ -142,9 +174,11 @@ export default function CityPage({ params }: { params: Params }) {
         isPolarNight={snap.isPolarNight}
       >
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 pt-7">
-          <Logo variant="compact" />
+          <Link href="/" aria-label="HowLongDay home">
+            <Logo variant="compact" />
+          </Link>
           <ul className="hidden gap-7 text-sm font-medium text-white/85 md:flex">
-            <li className="cursor-default">Today</li>
+            <li><Link href="/" className="hover:text-white">Home</Link></li>
             <li className="cursor-default text-white/50">Explore</li>
             <li className="cursor-default text-white/50">API</li>
           </ul>
@@ -193,6 +227,28 @@ export default function CityPage({ params }: { params: Params }) {
         year={year}
         cityName={city.name}
       />
+
+      {/* Popular cities pills (same-country if dense, else curated international) */}
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+            {nearby[0]?.countryCode === city.countryCode
+              ? `More in ${city.country}`
+              : 'Explore other cities'}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {nearby.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/${c.slug}`}
+                className="rounded-full border border-white/15 bg-white/[0.04] px-4 py-1.5 text-sm font-medium text-white/85 transition hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
+              >
+                {c.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Features bar */}
       <section className="border-t border-white/5 bg-bg-deepest">

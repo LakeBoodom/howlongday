@@ -296,14 +296,18 @@ export default function CityMonthPage({ params }: { params: Params }) {
         />
 
         <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 pt-7">
-          <Logo variant="compact" />
+          <Link href="/" aria-label="HowLongDay home">
+            <Logo variant="compact" />
+          </Link>
           <ul className="hidden gap-7 text-sm font-medium text-white/85 md:flex">
             <li>
+              <Link href="/" className="hover:text-white">Home</Link>
+            </li>
+            <li>
               <Link href={`/${city.slug}`} className="text-white/85 hover:text-white">
-                Today
+                {city.name} today
               </Link>
             </li>
-            <li className="cursor-default text-white/50">Explore</li>
             <li className="cursor-default text-white/50">API</li>
           </ul>
         </nav>

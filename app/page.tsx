@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
+import { CitySearch } from '@/components/CitySearch'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
 import { getCityBySlug } from '@/lib/cities'
 import {
@@ -76,28 +77,9 @@ export default function Home() {
           </p>
 
           <div className="mt-10 w-full max-w-md">
-            <div className="flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
-              <svg
-                className="h-5 w-5 text-white/70"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-              <input
-                disabled
-                placeholder="Search a city — Helsinki, Tokyo, Reykjavik…"
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-white/55 focus:outline-none"
-              />
-            </div>
+            <CitySearch />
             <p className="mt-3 text-[0.7rem] uppercase tracking-widecaps text-white/55">
-              Pick a city below — instant search arrives soon
+              Type any city, or pick one below
             </p>
           </div>
 
