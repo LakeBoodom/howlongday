@@ -5,7 +5,7 @@ import './globals.css'
 export const metadata: Metadata = {
   metadataBase: new URL('https://howlongday.com'),
   title: {
-    default: 'HowLongDay — Sunrise, sunset & daylight in 50,000+ cities',
+    default: 'HowLongDay — Sunrise, sunset & daylight in 49,000+ cities',
     template: '%s | HowLongDay',
   },
   description:

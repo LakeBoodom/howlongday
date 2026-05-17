@@ -62,8 +62,6 @@ export default function Home() {
           <Logo variant="compact" />
           <ul className="hidden gap-7 text-sm font-medium text-white/85 md:flex">
             <li className="cursor-default">Today</li>
-            <li className="cursor-default text-white/50">Explore</li>
-            <li className="cursor-default text-white/50">API</li>
           </ul>
         </nav>
 
@@ -175,13 +173,11 @@ export default function Home() {
       {/* Features bar */}
       <section className="border-t border-white/5 bg-bg-deepest">
         <div className="mx-auto max-w-6xl px-6 py-10">
-          <ul className="grid grid-cols-2 gap-y-4 text-center text-[0.7rem] uppercase tracking-widecaps text-neutral-3 sm:grid-cols-3 md:grid-cols-6">
+          <ul className="grid grid-cols-2 gap-y-4 text-center text-[0.7rem] uppercase tracking-widecaps text-neutral-3 sm:grid-cols-2 md:grid-cols-4">
             <li>200+ countries</li>
             <li>49,000+ cities</li>
             <li>Astronomical precision</li>
             <li>Golden &amp; Blue hour</li>
-            <li>Free API</li>
-            <li>Free forever</li>
           </ul>
         </div>
       </section>
