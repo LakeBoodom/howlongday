@@ -10,7 +10,10 @@ export const metadata: Metadata = {
 }
 
 const LAST_UPDATED = 'May 16, 2026'
-const CONTACT_EMAIL = 'heikki@stanssi.fi'
+// Split to make trivial regex scraping (\w+@\w+\.\w+) miss the address.
+// Rendered with the literal "@" replaced by " [at] " for humans.
+const CONTACT_USER = 'heikki'
+const CONTACT_DOMAIN = 'stanssi.fi'
 
 export default function PrivacyPage() {
   return (
@@ -115,15 +118,15 @@ export default function PrivacyPage() {
 
         <h2 className="mt-12 text-2xl font-semibold text-white">Contact</h2>
         <p className="mt-4">
-          HowLongDay is operated by Heikki Aura. For any privacy question,
-          email{' '}
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
-            className="text-daylight underline decoration-daylight/30 underline-offset-4 hover:decoration-daylight"
-          >
-            {CONTACT_EMAIL}
-          </a>
-          .
+          For any privacy question, write to{' '}
+          <span className="font-mono text-white">
+            {CONTACT_USER}
+            <span aria-hidden> [at] </span>
+            <span className="sr-only">@</span>
+            {CONTACT_DOMAIN}
+          </span>
+          . (Replace <span className="font-mono">[at]</span> with{' '}
+          <span className="font-mono">@</span> to send mail.)
         </p>
 
         <h2 className="mt-12 text-2xl font-semibold text-white">Changes</h2>
