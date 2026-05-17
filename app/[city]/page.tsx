@@ -27,8 +27,13 @@ import {
 } from '@/lib/astronomy'
 import { getSkyGradient } from '@/lib/sky'
 
-// Per-page ISR — sky depends on real-time sun elevation, so we refresh hourly.
-export const revalidate = 3600
+// Per-page ISR — daylight data (sunrise/sunset/length) is per-date and stable
+// within a day, so revalidating daily is plenty. The sun-elevation visual in
+// the hero will be stale within a day (it reflects the time the cache was
+// last written); accepted as a trade-off for keeping ISR Writes within
+// Vercel's free-tier limit. Long-term fix: move the live sun position to a
+// client component so the cached HTML stays fresh-looking all day.
+export const revalidate = 86400
 
 interface Params {
   city: string

@@ -17,7 +17,7 @@ import { Logo } from '@/components/Logo'
 import { MonthCalendar } from '@/components/MonthCalendar'
 import { FaqAccordion, type FaqEntry } from '@/components/FaqAccordion'
 
-import { getCityBySlug, getTopCities } from '@/lib/cities'
+import { getCityBySlug, getTopCities, isTopCity } from '@/lib/cities'
 import { MONTHS, getMonthBySlug, firstWeekday as monthFirstWeekday } from '@/lib/months'
 import {
   getMonthlyDaylight,
@@ -27,9 +27,11 @@ import {
 } from '@/lib/astronomy'
 import { getSkyGradient } from '@/lib/sky'
 
-// 1-hour ISR — keeps "today" highlight fresh and lets new cities (outside
-// the prebuilt 1,200) render on first request.
-export const revalidate = 3600
+// 30-day ISR — monthly daylight stats are essentially year-bound and don't
+// change within a month. The "today" highlight on the current month can lag
+// by up to 30 days (acceptable trade-off vs. ISR Writes cost). New cities
+// outside the prebuilt 1,200 still render on first request.
+export const revalidate = 2592000
 
 interface Params {
   city: string
@@ -227,9 +229,17 @@ export default function CityMonthPage({ params }: { params: Params }) {
     now.getUTCFullYear() === year && now.getUTCMonth() === month.index
   const todayDay = isCurrentMonth ? now.getUTCDate() : null
 
-  // Previous/Next month nav links
-  const prevMonth = MONTHS[(month.index + 11) % 12]
-  const nextMonth = MONTHS[(month.index + 1) % 12]
+  // Previous/Next month nav links.
+  //
+  // Only render these for cities in the prebuilt SSG set (top 100 × 12 = all
+  // 1,200 month pages are static). For non-prebuilt cities, prev/next links
+  // would let crawlers chain through all 12 months and trigger an ISR write
+  // per page — multiplying our long-tail cost by 12×. Users typing a month
+  // URL directly still get the page; they just don't get walked through the
+  // whole year by clicking.
+  const cityIsPrebuilt = isTopCity(city.slug, 100)
+  const prevMonth = cityIsPrebuilt ? MONTHS[(month.index + 11) % 12] : null
+  const nextMonth = cityIsPrebuilt ? MONTHS[(month.index + 1) % 12] : null
 
   const faq = buildFaq({
     cityName: city.name,
@@ -361,20 +371,22 @@ export default function CityMonthPage({ params }: { params: Params }) {
             <h2 className="font-semibold text-white text-2xl sm:text-3xl">
               Day by day
             </h2>
-            <div className="hidden gap-3 text-sm text-neutral-3 sm:flex">
-              <Link
-                href={`/${city.slug}/${prevMonth.slug}`}
-                className="rounded-full border border-white/10 px-4 py-1.5 hover:border-white/25 hover:text-white"
-              >
-                ← {prevMonth.name}
-              </Link>
-              <Link
-                href={`/${city.slug}/${nextMonth.slug}`}
-                className="rounded-full border border-white/10 px-4 py-1.5 hover:border-white/25 hover:text-white"
-              >
-                {nextMonth.name} →
-              </Link>
-            </div>
+            {prevMonth && nextMonth && (
+              <div className="hidden gap-3 text-sm text-neutral-3 sm:flex">
+                <Link
+                  href={`/${city.slug}/${prevMonth.slug}`}
+                  className="rounded-full border border-white/10 px-4 py-1.5 hover:border-white/25 hover:text-white"
+                >
+                  ← {prevMonth.name}
+                </Link>
+                <Link
+                  href={`/${city.slug}/${nextMonth.slug}`}
+                  className="rounded-full border border-white/10 px-4 py-1.5 hover:border-white/25 hover:text-white"
+                >
+                  {nextMonth.name} →
+                </Link>
+              </div>
+            )}
           </div>
 
           <MonthCalendar
@@ -392,20 +404,22 @@ export default function CityMonthPage({ params }: { params: Params }) {
           </div>
 
           {/* Mobile prev/next */}
-          <div className="mt-6 flex gap-3 text-sm text-neutral-3 sm:hidden">
-            <Link
-              href={`/${city.slug}/${prevMonth.slug}`}
-              className="flex-1 rounded-full border border-white/10 px-4 py-2 text-center hover:border-white/25 hover:text-white"
-            >
-              ← {prevMonth.name}
-            </Link>
-            <Link
-              href={`/${city.slug}/${nextMonth.slug}`}
-              className="flex-1 rounded-full border border-white/10 px-4 py-2 text-center hover:border-white/25 hover:text-white"
-            >
-              {nextMonth.name} →
-            </Link>
-          </div>
+          {prevMonth && nextMonth && (
+            <div className="mt-6 flex gap-3 text-sm text-neutral-3 sm:hidden">
+              <Link
+                href={`/${city.slug}/${prevMonth.slug}`}
+                className="flex-1 rounded-full border border-white/10 px-4 py-2 text-center hover:border-white/25 hover:text-white"
+              >
+                ← {prevMonth.name}
+              </Link>
+              <Link
+                href={`/${city.slug}/${nextMonth.slug}`}
+                className="flex-1 rounded-full border border-white/10 px-4 py-2 text-center hover:border-white/25 hover:text-white"
+              >
+                {nextMonth.name} →
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
