@@ -231,20 +231,20 @@ export default function CityMonthPage({ params }: { params: Params }) {
     now.getUTCFullYear() === year && now.getUTCMonth() === month.index
   const todayDay = isCurrentMonth ? now.getUTCDate() : null
 
-  // Previous/Next month nav links.
+  // Cross-month navigation visibility.
   //
-  // Only render these for cities in the prebuilt SSG set (top 100 × 12 = all
-  // 1,200 month pages are static). For non-prebuilt cities, prev/next links
-  // would let crawlers chain through all 12 months and trigger an ISR write
-  // per page — multiplying our long-tail cost by 12×. Users typing a month
-  // URL directly still get the page; they just don't get walked through the
-  // whole year by clicking.
-  const cityIsPrebuilt = isTopCity(city.slug, 100)
+  // Shown for the top-1000 SSG-prebuilt city set. For the ~48k tail cities
+  // we hide both the chips and the 12-tile strip — letting Googlebot walk
+  // chains from a tail-city month page would multiply ISR cost by 12× per
+  // discovered city. Users typing a month URL directly still get the page.
+  //
+  // For top-1000 cities the math is bounded: ~10,800 potential month-page
+  // ISR writes (10,800 = top-101..1000 × 12 months), revalidated every 30d,
+  // well within Vercel's free-tier 200k/month limit.
+  const cityIsPrebuilt = isTopCity(city.slug, 1000)
   const prevMonth = cityIsPrebuilt ? MONTHS[(month.index + 11) % 12] : null
   const nextMonth = cityIsPrebuilt ? MONTHS[(month.index + 1) % 12] : null
 
-  // Full 12-month strip — supersedes the small prev/next chips for prebuilt
-  // cities. Same ISR-economics rule applies.
   const monthSummaries = cityIsPrebuilt
     ? getYearlyMonthlySummaries(city.lat, city.lon, year)
     : null

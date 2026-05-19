@@ -172,11 +172,13 @@ export default function CityPage({ params }: { params: Params }) {
   const isHighLatitude = Math.abs(city.lat) >= 66.5
   const nearby = getNearbyCities(city)
 
-  // "Plan ahead" 12-month browser. Gated to the top-100 prebuilt SSG set:
-  // for tail cities a linked 12-tile grid would walk Googlebot through 12
-  // ISR writes per city, multiplying long-tail cost. Tail cities keep the
-  // YearlyDaylight chart below as their cross-month overview.
-  const showMonthBrowser = isTopCity(city.slug, 100)
+  // "Plan ahead" 12-month browser. Gated to the top-1000 SSG-prebuilt city
+  // set — that covers every city we surface as a CTA (Helsinki, Stockholm,
+  // Anchorage, Sydney, Tokyo, etc.) while keeping ISR cost bounded. For the
+  // ~48k tail cities a linked 12-tile grid would let Googlebot trigger 12
+  // ISR writes per city; the YearlyDaylight chart below serves as their
+  // cross-month overview instead.
+  const showMonthBrowser = isTopCity(city.slug, 1000)
   const monthSummaries = showMonthBrowser
     ? getYearlyMonthlySummaries(city.lat, city.lon, year)
     : null
