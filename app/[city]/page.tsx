@@ -8,17 +8,20 @@ import { DataCards } from '@/components/DataCards'
 import { SecondaryRow } from '@/components/SecondaryRow'
 import { SeoSection } from '@/components/SeoSection'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
+import { MonthBrowser } from '@/components/MonthBrowser'
 
 import {
   getCityBySlug,
   getTopCities,
   getCitiesByCountry,
+  isTopCity,
   type City,
 } from '@/lib/cities'
 import {
   getSolarSnapshot,
   getMaxDaylight,
   getYearlyDaylight,
+  getYearlyMonthlySummaries,
   dayOfYearUTC,
   formatLocalDate,
   formatLocalTime,
@@ -169,6 +172,24 @@ export default function CityPage({ params }: { params: Params }) {
   const isHighLatitude = Math.abs(city.lat) >= 66.5
   const nearby = getNearbyCities(city)
 
+  // "Plan ahead" 12-month browser. Gated to the top-100 prebuilt SSG set:
+  // for tail cities a linked 12-tile grid would walk Googlebot through 12
+  // ISR writes per city, multiplying long-tail cost. Tail cities keep the
+  // YearlyDaylight chart below as their cross-month overview.
+  const showMonthBrowser = isTopCity(city.slug, 100)
+  const monthSummaries = showMonthBrowser
+    ? getYearlyMonthlySummaries(city.lat, city.lon, year)
+    : null
+  // City's local month index (0..11), so the "Now" badge respects timezone.
+  const cityLocalMonthIndex =
+    parseInt(
+      new Intl.DateTimeFormat('en-US', {
+        month: 'numeric',
+        timeZone: city.timezone,
+      }).format(now),
+      10,
+    ) - 1
+
   return (
     <>
       <HeroSky
@@ -216,6 +237,16 @@ export default function CityPage({ params }: { params: Params }) {
           </div>
         </div>
       </HeroSky>
+
+      {showMonthBrowser && monthSummaries && (
+        <MonthBrowser
+          citySlug={city.slug}
+          cityName={city.name}
+          year={year}
+          summaries={monthSummaries}
+          currentMonthIndex={cityLocalMonthIndex}
+        />
+      )}
 
       <SeoSection
         city={city}

@@ -226,6 +226,53 @@ export function dayOfYearUTC(date: Date): number {
   return Math.floor((date.getTime() - start) / 86_400_000)
 }
 
+/**
+ * Per-month aggregated daylight stats for a full year, used by MonthBrowser
+ * tiles. One pass over `getYearlyDaylight` — cheap, no extra SunCalc calls.
+ *
+ * Returns 12 entries (Jan..Dec), each carrying avg/min/max daylight in
+ * seconds. Polar conditions are represented naturally: 86400 for full
+ * midnight-sun days, 0 for full polar-night days.
+ */
+export interface MonthDaylightSummary {
+  /** 0-indexed month (0 = Jan). */
+  month: number
+  /** Mean daylight seconds across the month. */
+  avgSeconds: number
+  /** Shortest day in the month (seconds). */
+  minSeconds: number
+  /** Longest day in the month (seconds). */
+  maxSeconds: number
+}
+
+export function getYearlyMonthlySummaries(
+  lat: number,
+  lon: number,
+  year: number,
+): MonthDaylightSummary[] {
+  const points = getYearlyDaylight(lat, lon, year)
+
+  const sums = new Array(12).fill(0)
+  const counts = new Array(12).fill(0)
+  const mins = new Array(12).fill(Infinity)
+  const maxs = new Array(12).fill(-Infinity)
+
+  for (const p of points) {
+    const monthIdx = p.date.getUTCMonth()
+    sums[monthIdx] += p.daylightSeconds
+    counts[monthIdx] += 1
+    if (p.daylightSeconds < mins[monthIdx]) mins[monthIdx] = p.daylightSeconds
+    if (p.daylightSeconds > maxs[monthIdx]) maxs[monthIdx] = p.daylightSeconds
+  }
+
+  return Array.from({ length: 12 }, (_, m) => ({
+    month: m,
+    avgSeconds: counts[m] > 0 ? sums[m] / counts[m] : 0,
+    minSeconds: mins[m] === Infinity ? 0 : mins[m],
+    maxSeconds: maxs[m] === -Infinity ? 0 : maxs[m],
+  }))
+}
+
 // ---------------------------------------------------------------------------
 // Monthly daylight series
 // ---------------------------------------------------------------------------

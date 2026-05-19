@@ -15,12 +15,14 @@ import { notFound } from 'next/navigation'
 
 import { Logo } from '@/components/Logo'
 import { MonthCalendar } from '@/components/MonthCalendar'
+import { MonthBrowser } from '@/components/MonthBrowser'
 import { FaqAccordion, type FaqEntry } from '@/components/FaqAccordion'
 
 import { getCityBySlug, getTopCities, isTopCity } from '@/lib/cities'
 import { MONTHS, getMonthBySlug, firstWeekday as monthFirstWeekday } from '@/lib/months'
 import {
   getMonthlyDaylight,
+  getYearlyMonthlySummaries,
   formatLocalTime,
   formatDuration,
   type DaySolarSnapshot,
@@ -241,6 +243,12 @@ export default function CityMonthPage({ params }: { params: Params }) {
   const prevMonth = cityIsPrebuilt ? MONTHS[(month.index + 11) % 12] : null
   const nextMonth = cityIsPrebuilt ? MONTHS[(month.index + 1) % 12] : null
 
+  // Full 12-month strip — supersedes the small prev/next chips for prebuilt
+  // cities. Same ISR-economics rule applies.
+  const monthSummaries = cityIsPrebuilt
+    ? getYearlyMonthlySummaries(city.lat, city.lon, year)
+    : null
+
   const faq = buildFaq({
     cityName: city.name,
     country: city.country,
@@ -367,23 +375,25 @@ export default function CityMonthPage({ params }: { params: Params }) {
       {/* Calendar */}
       <section className="border-t border-white/5 bg-bg-deepest">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex items-center justify-between gap-4">
             <h2 className="font-semibold text-white text-2xl sm:text-3xl">
               Day by day
             </h2>
             {prevMonth && nextMonth && (
-              <div className="hidden gap-3 text-sm text-neutral-3 sm:flex">
+              <div className="hidden gap-2 text-sm text-neutral-3 sm:flex">
                 <Link
                   href={`/${city.slug}/${prevMonth.slug}`}
-                  className="rounded-full border border-white/10 px-4 py-1.5 hover:border-white/25 hover:text-white"
+                  aria-label={`Previous month — ${prevMonth.name}`}
+                  className="rounded-full border border-white/10 px-3 py-1.5 hover:border-white/25 hover:text-white"
                 >
-                  ← {prevMonth.name}
+                  ← {prevMonth.short}
                 </Link>
                 <Link
                   href={`/${city.slug}/${nextMonth.slug}`}
-                  className="rounded-full border border-white/10 px-4 py-1.5 hover:border-white/25 hover:text-white"
+                  aria-label={`Next month — ${nextMonth.name}`}
+                  className="rounded-full border border-white/10 px-3 py-1.5 hover:border-white/25 hover:text-white"
                 >
-                  {nextMonth.name} →
+                  {nextMonth.short} →
                 </Link>
               </div>
             )}
@@ -402,26 +412,19 @@ export default function CityMonthPage({ params }: { params: Params }) {
             <span><span className="text-daylight">●</span> Daylight</span>
             <span>Times shown in {city.timezone}</span>
           </div>
-
-          {/* Mobile prev/next */}
-          {prevMonth && nextMonth && (
-            <div className="mt-6 flex gap-3 text-sm text-neutral-3 sm:hidden">
-              <Link
-                href={`/${city.slug}/${prevMonth.slug}`}
-                className="flex-1 rounded-full border border-white/10 px-4 py-2 text-center hover:border-white/25 hover:text-white"
-              >
-                ← {prevMonth.name}
-              </Link>
-              <Link
-                href={`/${city.slug}/${nextMonth.slug}`}
-                className="flex-1 rounded-full border border-white/10 px-4 py-2 text-center hover:border-white/25 hover:text-white"
-              >
-                {nextMonth.name} →
-              </Link>
-            </div>
-          )}
         </div>
       </section>
+
+      {monthSummaries && (
+        <MonthBrowser
+          citySlug={city.slug}
+          cityName={city.name}
+          year={year}
+          summaries={monthSummaries}
+          currentMonthIndex={month.index}
+          highlightLabel="Viewing"
+        />
+      )}
 
       {/* SEO + FAQ */}
       <section className="border-t border-white/5">
