@@ -192,8 +192,80 @@ export default function CityPage({ params }: { params: Params }) {
       10,
     ) - 1
 
+  // --- JSON-LD structured data -------------------------------------------
+  const sunriseFormatted = formatLocalTime(snap.sunrise, city.timezone)
+  const sunsetFormatted = formatLocalTime(snap.sunset, city.timezone)
+  const daylightFormatted = formatDuration(snap.daylightSeconds)
+  const goldenHourFormatted = formatLocalTime(snap.goldenHour, city.timezone)
+  const dateLabel = formatLocalDate(now, city.timezone)
+
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: snap.isMidnightSun
+      ? [
+          {
+            '@type': 'Question',
+            name: `How long is the day in ${city.name} today?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `${city.name}, ${city.country} is experiencing midnight sun on ${dateLabel} — the sun stays above the horizon for the full 24 hours.`,
+            },
+          },
+        ]
+      : snap.isPolarNight
+      ? [
+          {
+            '@type': 'Question',
+            name: `How long is the day in ${city.name} today?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `${city.name}, ${city.country} is in polar night on ${dateLabel} — the sun does not rise above the horizon today.`,
+            },
+          },
+        ]
+      : [
+          {
+            '@type': 'Question',
+            name: `What time is sunrise in ${city.name} today?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `Sunrise in ${city.name}, ${city.country} today (${dateLabel}) is at ${sunriseFormatted}.`,
+            },
+          },
+          {
+            '@type': 'Question',
+            name: `What time is sunset in ${city.name} today?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `Sunset in ${city.name}, ${city.country} today (${dateLabel}) is at ${sunsetFormatted}.`,
+            },
+          },
+          {
+            '@type': 'Question',
+            name: `How long is the day in ${city.name} today?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `Daylight in ${city.name} today is ${daylightFormatted} long — from sunrise at ${sunriseFormatted} to sunset at ${sunsetFormatted}.`,
+            },
+          },
+          {
+            '@type': 'Question',
+            name: `What time is golden hour in ${city.name} today?`,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: `Evening golden hour in ${city.name} today starts at ${goldenHourFormatted}, when the sun drops below 6° above the horizon.`,
+            },
+          },
+        ],
+  }
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       <HeroSky
         sky={sky}
         azimuthDeg={snap.azimuthDeg}

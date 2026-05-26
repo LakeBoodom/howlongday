@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { CitySearch } from '@/components/CitySearch'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
+import { LocalSnapshot } from '@/components/LocalSnapshot'
 import { getCityBySlug } from '@/lib/cities'
 import {
   getSolarSnapshot,
@@ -100,28 +101,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Live snapshot — proof the data is real */}
-      <section className="border-t border-white/5 bg-bg-deepest">
-        <div className="mx-auto max-w-6xl px-6 py-16">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-2xl font-semibold text-white sm:text-3xl">
-              Right now in Helsinki
-            </h2>
-            <Link
-              href="/helsinki"
-              className="text-sm font-medium text-daylight hover:text-white"
-            >
-              See full Helsinki page →
-            </Link>
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-            <Snap label="Sunrise" value={formatLocalTime(snap.sunrise, helsinki.timezone)} color="text-sunrise" />
-            <Snap label="Sunset" value={formatLocalTime(snap.sunset, helsinki.timezone)} color="text-sunset" />
-            <Snap label="Solar Noon" value={formatLocalTime(snap.solarNoon, helsinki.timezone)} />
-            <Snap label="Daylight" value={formatDuration(snap.daylightSeconds)} color="text-daylight" />
-          </div>
-        </div>
-      </section>
+      {/* Live snapshot — detects user location client-side, falls back to Helsinki */}
+      <LocalSnapshot
+        defaultCity={{
+          name: helsinki.name,
+          slug: helsinki.slug,
+          country: helsinki.country,
+          sunrise: snap.isMidnightSun ? '—' : formatLocalTime(snap.sunrise, helsinki.timezone),
+          sunset: snap.isPolarNight ? '—' : formatLocalTime(snap.sunset, helsinki.timezone),
+          solarNoon: formatLocalTime(snap.solarNoon, helsinki.timezone),
+          daylight: formatDuration(snap.daylightSeconds),
+          isMidnightSun: snap.isMidnightSun,
+          isPolarNight: snap.isPolarNight,
+        }}
+      />
 
       {/* Yearly daylight chart preview for Helsinki */}
       <YearlyDaylight
@@ -196,23 +189,3 @@ export default function Home() {
   )
 }
 
-function Snap({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: string
-  color?: string
-}) {
-  return (
-    <div className="rounded-card border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-      <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
-        {label}
-      </div>
-      <div className={`mt-3 font-semibold text-3xl tabular-nums ${color ?? 'text-white'}`}>
-        {value}
-      </div>
-    </div>
-  )
-}

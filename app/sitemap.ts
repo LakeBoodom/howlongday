@@ -2,13 +2,13 @@
  * Dynamic sitemap with multiple sub-sitemaps.
  *
  * `generateSitemaps` makes Next emit:
- *   /sitemap.xml          — the sitemap-index, listing the children below
- *   /sitemap/cities.xml   — homepage + ~49k city pages
- *   /sitemap/months.xml   — top 100 cities × 12 months = 1,200 month pages
+ *   /sitemap.xml          â the sitemap-index, listing the children below
+ *   /sitemap/cities.xml   â homepage + ~49k city pages
+ *   /sitemap/months.xml   â top 100 cities Ã 12 months = 1,200 month pages
  *
  * Splitting matters because the combined list exceeds Google's 50k-URL
  * single-sitemap limit. Keeping each child well under 50k also leaves
- * headroom for future expansion (per-year pages, golden-hour pages…).
+ * headroom for future expansion (per-year pages, golden-hour pagesâ¦).
  *
  * Priority tiers:
  *   1.0   homepage
