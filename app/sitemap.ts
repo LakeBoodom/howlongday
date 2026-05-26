@@ -53,7 +53,12 @@ export default async function sitemap(
       entries.push({
         url: `${BASE}/${c.slug}`,
         lastModified: today,
-        changeFrequency: 'daily',
+        // Top-1000 cities are prebuilt SSG and refresh daily (sunrise/sunset
+        // changes each day). The remaining ~48k tail cities use ISR and are
+        // listed as 'weekly' to prevent crawlers from triggering a fresh ISR
+        // write on every daily crawl — the main driver of Vercel ISR-Write
+        // overage on the free tier.
+        changeFrequency: topSlugs.has(c.slug) ? 'daily' : 'weekly',
         priority: topSlugs.has(c.slug) ? 0.9 : 0.6,
       })
     }
