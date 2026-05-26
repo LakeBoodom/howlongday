@@ -2,13 +2,13 @@
  * Dynamic sitemap with multiple sub-sitemaps.
  *
  * `generateSitemaps` makes Next emit:
- *   /sitemap.xml          — the sitemap-index, listing the children below
- *   /sitemap/cities.xml   — homepage + ~49k city pages
- *   /sitemap/months.xml   — top 100 cities × 12 months = 1,200 month pages
+ *   /sitemap.xml          â the sitemap-index, listing the children below
+ *   /sitemap/cities.xml   â homepage + ~49k city pages
+ *   /sitemap/months.xml   â top 100 cities Ã 12 months = 1,200 month pages
  *
  * Splitting matters because the combined list exceeds Google's 50k-URL
  * single-sitemap limit. Keeping each child well under 50k also leaves
- * headroom for future expansion (per-year pages, golden-hour pages…).
+ * headroom for future expansion (per-year pages, golden-hour pagesâ¦).
  *
  * Priority tiers:
  *   1.0   homepage
@@ -53,7 +53,12 @@ export default async function sitemap(
       entries.push({
         url: `${BASE}/${c.slug}`,
         lastModified: today,
-        changeFrequency: 'daily',
+        // Top-1000 cities are prebuilt SSG and refresh daily (sunrise/sunset
+        // changes each day). The remaining ~48k tail cities use ISR and are
+        // listed as 'weekly' to prevent crawlers from triggering a fresh ISR
+        // write on every daily crawl — the main driver of Vercel ISR-Write
+        // overage on the free tier.
+        changeFrequency: topSlugs.has(c.slug) ? 'daily' : 'weekly',
         priority: topSlugs.has(c.slug) ? 0.9 : 0.6,
       })
     }
