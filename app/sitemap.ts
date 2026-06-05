@@ -71,15 +71,19 @@ export default async function sitemap(
   }
 
   if (id === 'months') {
-    const top100 = getTopCities(100)
+    const top100Slugs = new Set(getTopCities(100).map((c) => c.slug))
+    const top1000 = getTopCities(1000)
     const entries: MetadataRoute.Sitemap = []
-    for (const c of top100) {
+    for (const c of top1000) {
       for (const m of MONTHS) {
         entries.push({
           url: `${BASE}/${c.slug}/${m.slug}`,
           lastModified: today,
           changeFrequency: 'monthly',
-          priority: 0.7,
+          // Top-100 city month pages get higher priority — these are the most
+          // competitive planning queries. Cities 101-1000 are valuable but
+          // slightly lower signal for Googlebot budget allocation.
+          priority: top100Slugs.has(c.slug) ? 0.7 : 0.6,
         })
       }
     }

@@ -15,7 +15,7 @@
  * ring and "Now" badge.
  *
  * Server component, no client JS. Renders only on contexts where the city
- * is in the top-100 prebuilt SSG set — otherwise the linked tiles would
+ * is in the top-1000 prebuilt SSG set — otherwise the linked tiles would
  * walk Googlebot through 12 ISR writes per tail city.
  */
 

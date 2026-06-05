@@ -5,8 +5,8 @@
  * {Month}" — a high-volume long-tail query. We render a day-by-day calendar
  * grid, summary stats (average / longest / shortest day), and FAQPage JSON-LD.
  *
- * Build strategy: top 100 cities × 12 months = 1,200 prebuilt pages.
- * Remaining city/month combinations render on-demand via ISR (revalidate=1h).
+ * Build strategy: top 1000 cities × 12 months = 12,000 prebuilt pages.
+ * Remaining city/month combinations render on-demand via ISR (revalidate=30d).
  */
 
 import type { Metadata } from 'next'
@@ -41,7 +41,7 @@ interface Params {
 }
 
 export async function generateStaticParams() {
-  const topCities = getTopCities(100)
+  const topCities = getTopCities(1000)
   const params: Array<{ city: string; month: string }> = []
   for (const c of topCities) {
     for (const m of MONTHS) {
@@ -407,10 +407,11 @@ export default function CityMonthPage({ params }: { params: Params }) {
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-4 text-[0.65rem] uppercase tracking-widecaps text-neutral-4">
-            <span><span className="text-sunrise">↑</span> Sunrise</span>
-            <span><span className="text-sunset">↓</span> Sunset</span>
+            <span className="hidden sm:inline"><span className="text-sunrise">↑</span> Sunrise</span>
+            <span className="hidden sm:inline"><span className="text-sunset">↓</span> Sunset</span>
             <span><span className="text-daylight">●</span> Daylight</span>
-            <span>Times shown in {city.timezone}</span>
+            <span className="hidden sm:inline">Times shown in {city.timezone}</span>
+            <span className="sm:hidden text-neutral-4">Rotate for sunrise &amp; sunset times · {city.timezone}</span>
           </div>
         </div>
       </section>
@@ -447,6 +448,9 @@ export default function CityMonthPage({ params }: { params: Params }) {
                   firstSunset: days[0]?.sunset,
                   lastSunrise: days[days.length - 1]?.sunrise,
                   lastSunset: days[days.length - 1]?.sunset,
+                  firstDaylight: days[0]?.daylightSeconds,
+                  lastDaylight: days[days.length - 1]?.daylightSeconds,
+                  totalDays: days.length,
                 }).map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}
@@ -523,10 +527,14 @@ function monthIntroParagraphs(opts: {
   firstSunset?: Date
   lastSunrise?: Date
   lastSunset?: Date
+  firstDaylight?: number
+  lastDaylight?: number
+  totalDays?: number
 }): string[] {
   const {
     cityName, country, monthName, year, stats, lat, timezone,
     firstSunrise, firstSunset, lastSunrise, lastSunset,
+    firstDaylight, lastDaylight, totalDays,
   } = opts
 
   if (stats.allMidnightSun) {
@@ -547,14 +555,90 @@ function monthIntroParagraphs(opts: {
   const firstSs = firstSunset ? formatLocalTime(firstSunset, timezone) : '—'
   const lastSr = lastSunrise ? formatLocalTime(lastSunrise, timezone) : '—'
   const lastSs = lastSunset ? formatLocalTime(lastSunset, timezone) : '—'
-  const trendShorter = stats.maxDay <= stats.minDay
-  const trend = trendShorter ? 'shortening' : 'lengthening'
 
-  return [
+  const paragraphs: string[] = []
+
+  // --- Paragraph 1: overview ---
+  paragraphs.push(
     `In ${cityName}, ${country}, daylight in ${monthName} ${year} averages ${formatDuration(stats.avg)} per day. The month opens with sunrise at ${firstSr} and sunset at ${firstSs}; it closes with sunrise at ${lastSr} and sunset at ${lastSs}.`,
-    `Across the month the days are ${trend} — the longest falls on the ${ordinal(stats.maxDay)} with ${formatDuration(stats.max)} of daylight, while the shortest is the ${ordinal(stats.minDay)} at ${formatDuration(stats.min)}. The calendar above lists the exact sunrise, sunset and daylight length for every day.`,
-    `All times are shown in ${cityName}'s local timezone (${timezone}). For a real-time view of the current sun position, see the ${cityName} page.`,
-  ]
+  )
+
+  // --- Paragraph 2: rate of change ---
+  const dailyChangeSec =
+    firstDaylight != null && lastDaylight != null && totalDays && totalDays > 1
+      ? (lastDaylight - firstDaylight) / (totalDays - 1)
+      : null
+
+  if (dailyChangeSec != null) {
+    const absMin = Math.abs(dailyChangeSec / 60)
+    const totalChangeMin =
+      Math.abs((lastDaylight ?? 0) - (firstDaylight ?? 0)) / 60
+    const totalChangeH = totalChangeMin / 60
+    const gaining = dailyChangeSec > 0
+    const totalDesc =
+      totalChangeH >= 1
+        ? `${totalChangeH.toFixed(1)} hour${totalChangeH >= 1.5 ? 's' : ''}`
+        : `${Math.round(totalChangeMin)} minutes`
+
+    let trendSentence: string
+    if (absMin < 0.8) {
+      const isLongDay = stats.avg > 10 * 3600
+      trendSentence = `Daylight barely shifts from one day to the next in ${monthName} — ${cityName} is near its annual ${isLongDay ? 'peak' : 'minimum'}, with changes of less than a minute per day.`
+    } else if (absMin < 3) {
+      trendSentence = `Days are ${gaining ? 'lengthening' : 'shortening'} by around ${absMin.toFixed(0)} minute${absMin >= 1.5 ? 's' : ''} per day through ${monthName}, adding up to a total shift of ${totalDesc} from the 1st to the last day of the month.`
+    } else {
+      trendSentence = `Days are ${gaining ? 'gaining' : 'losing'} around ${Math.round(absMin)} minutes each day — making ${monthName} one of the fastest-changing months of the year in ${cityName}. From start to finish the month sees a total ${gaining ? 'gain' : 'loss'} of ${totalDesc} of daylight.`
+    }
+    paragraphs.push(trendSentence)
+  } else {
+    const trendShorter = stats.maxDay <= stats.minDay
+    const trend = trendShorter ? 'shortening' : 'lengthening'
+    paragraphs.push(
+      `Across the month the days are ${trend} — the longest falls on the ${ordinal(stats.maxDay)} with ${formatDuration(stats.max)} of daylight, while the shortest is the ${ordinal(stats.minDay)} at ${formatDuration(stats.min)}.`,
+    )
+  }
+
+  // --- Paragraph 3: planning context ---
+  const avgHours = stats.avg / 3600
+  const gaining = dailyChangeSec != null ? dailyChangeSec > 0 : stats.maxDay > stats.minDay
+
+  if (avgHours >= 15) {
+    paragraphs.push(
+      `With sunset falling after ${lastSs.split(':')[0]}:00 for much of the month, ${monthName} is prime time for outdoor plans in ${cityName}. After-work golf rounds, evening hikes, and long outdoor dinners are all within reach — make the most of it.`,
+    )
+  } else if (avgHours >= 12) {
+    paragraphs.push(
+      `${monthName} offers a solid daily window for outdoor activity in ${cityName}. With around ${Math.round(avgHours)} hours of daylight, there is light both in the morning and the evening for most plans.`,
+    )
+  } else if (avgHours >= 8) {
+    if (gaining) {
+      paragraphs.push(
+        `For anyone waiting out the darker months in ${cityName}, ${monthName} brings welcome progress. Each passing week adds a noticeable chunk of light — by the end of the month, evening plans begin to feel realistic again.`,
+      )
+    } else {
+      paragraphs.push(
+        `As days shorten through ${monthName}, outdoor activity in ${cityName} is best planned around midday. Early evenings darken quickly — hiking, cycling and outdoor sport work best in the middle of the day.`,
+      )
+    }
+  } else {
+    // Dark winter
+    if (gaining) {
+      paragraphs.push(
+        `The short days in ${monthName} are felt strongly at ${cityName}'s latitude — most usable daylight is compressed into the midday window. The encouraging news: the trend is upward from here, and each week in ${monthName} reclaims a few more minutes of light.`,
+      )
+    } else {
+      paragraphs.push(
+        `At ${cityName}'s latitude, ${monthName} is among the darkest months of the year. Most daylight falls in a narrow midday window — plan any outdoor activity between ${firstSr} and ${firstSs} to make the most of it. The December solstice marks the turning point after which every day grows a little longer.`,
+      )
+    }
+  }
+
+  // --- Paragraph 4: timezone note ---
+  paragraphs.push(
+    `All times are shown in ${cityName}'s local timezone (${timezone}). For a real-time view of the current sun position, see the ${cityName} today page.`,
+  )
+
+  return paragraphs
 }
 
 function pickElevationProxy(stats: MonthStats): number {

@@ -79,19 +79,26 @@ export function MonthCalendar({ days, firstWeekday, timezone, todayDay }: Props)
                   Polar night
                 </div>
               ) : (
-                <div className="space-y-0.5 text-[0.65rem] leading-tight tabular-nums sm:text-[0.7rem]">
-                  <div className="flex items-center justify-between gap-1 text-sunrise">
-                    <span className="text-neutral-4">↑</span>
-                    <span>{formatLocalTime(cell.sunrise, timezone)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1 text-sunset">
-                    <span className="text-neutral-4">↓</span>
-                    <span>{formatLocalTime(cell.sunset, timezone)}</span>
-                  </div>
-                  <div className="pt-0.5 text-right font-medium text-daylight">
+                <>
+                  {/* Mobile: daylight hours only — cell too narrow for times */}
+                  <div className="sm:hidden text-center text-[0.7rem] font-medium text-daylight tabular-nums">
                     {formatDuration(cell.daylightSeconds)}
                   </div>
-                </div>
+                  {/* sm+: full sunrise / sunset / daylight */}
+                  <div className="hidden sm:block space-y-0.5 text-[0.7rem] leading-tight tabular-nums">
+                    <div className="flex items-center justify-between gap-1 text-sunrise">
+                      <span className="text-neutral-4">↑</span>
+                      <span>{formatLocalTime(cell.sunrise, timezone)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1 text-sunset">
+                      <span className="text-neutral-4">↓</span>
+                      <span>{formatLocalTime(cell.sunset, timezone)}</span>
+                    </div>
+                    <div className="pt-0.5 text-right font-medium text-daylight">
+                      {formatDuration(cell.daylightSeconds)}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )
