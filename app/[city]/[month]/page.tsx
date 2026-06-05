@@ -141,56 +141,139 @@ function buildFaq(opts: {
   year: number
   stats: MonthStats
   hemisphere: 'north' | 'south' | 'equatorial'
+  lat: number
+  timezone: string
+  firstSunset?: Date
+  lastSunset?: Date
+  firstDaylight?: number
+  lastDaylight?: number
+  totalDays?: number
 }): FaqEntry[] {
-  const { cityName, country, monthName, year, stats, hemisphere } = opts
+  const {
+    cityName, country, monthName, year, stats, hemisphere, lat, timezone,
+    firstSunset, lastSunset, firstDaylight, lastDaylight, totalDays,
+  } = opts
 
-  const summer =
-    hemisphere === 'north'
-      ? ['May', 'June', 'July', 'August']
-      : hemisphere === 'south'
-      ? ['November', 'December', 'January', 'February']
-      : []
+  const avgHours = stats.avg / 3600
+  const firstSs = firstSunset ? formatLocalTime(firstSunset, timezone) : '—'
+  const lastSs = lastSunset ? formatLocalTime(lastSunset, timezone) : '—'
 
-  const isSummerMonth = summer.includes(monthName)
+  const dailyChangeSec =
+    firstDaylight != null && lastDaylight != null && totalDays && totalDays > 1
+      ? (lastDaylight - firstDaylight) / (totalDays - 1)
+      : null
+  const gaining = dailyChangeSec != null ? dailyChangeSec > 0 : stats.maxDay > stats.minDay
+  const absChangeMin = dailyChangeSec != null ? Math.abs(dailyChangeSec / 60) : null
+  const totalChangeMin =
+    firstDaylight != null && lastDaylight != null
+      ? Math.abs(lastDaylight - firstDaylight) / 60
+      : null
+  const totalChangeDesc =
+    totalChangeMin != null
+      ? totalChangeMin >= 60
+        ? `${(totalChangeMin / 60).toFixed(1)} hours`
+        : `${Math.round(totalChangeMin)} minutes`
+      : null
 
-  return [
-    {
-      q: `How long is daylight in ${cityName} in ${monthName}?`,
+  const faqs: FaqEntry[] = []
+
+  // Q1: How long is daylight? (universal, high-value SEO query)
+  faqs.push({
+    q: `How long is daylight in ${cityName} in ${monthName}?`,
+    a: stats.allMidnightSun
+      ? `${cityName} is in midnight sun for the entire month of ${monthName} ${year} — daylight lasts all 24 hours every day.`
+      : stats.allPolarNight
+      ? `${cityName} is in polar night for the entire month of ${monthName} ${year} — the sun does not rise above the horizon.`
+      : `Daylight in ${cityName} in ${monthName} ${year} averages ${formatDuration(stats.avg)} per day, ranging from ${formatDuration(stats.min)} on the ${ordinal(stats.minDay)} to ${formatDuration(stats.max)} on the ${ordinal(stats.maxDay)}.`,
+  })
+
+  // Q2: Longest day (planning-useful)
+  faqs.push({
+    q: `When is the longest day of ${monthName} in ${cityName}?`,
+    a: stats.allMidnightSun
+      ? `Every day in ${monthName} ${year} is equally long — 24 hours of daylight — because of ${cityName}'s extreme latitude.`
+      : `The longest day in ${monthName} ${year} in ${cityName} is the ${ordinal(stats.maxDay)}, with ${formatDuration(stats.max)} of daylight.`,
+  })
+
+  // Q3: What time does it get dark? (highly searched planning query)
+  if (!stats.allMidnightSun && !stats.allPolarNight) {
+    faqs.push({
+      q: `What time does it get dark in ${cityName} in ${monthName}?`,
+      a: firstSs === lastSs
+        ? `Sunset in ${cityName} during ${monthName} ${year} falls around ${firstSs}. Civil twilight — when it becomes fully dark — follows roughly 20–30 minutes after sunset.`
+        : `Sunset in ${cityName} shifts from ${firstSs} at the start of ${monthName} to ${lastSs} by the end of the month. Civil twilight follows about 20–30 minutes after each sunset.`,
+    })
+  } else if (stats.allPolarNight) {
+    faqs.push({
+      q: `Is there any daylight in ${cityName} in ${monthName}?`,
+      a: `No — ${cityName} is in polar night for the entire month of ${monthName} ${year}. The sun stays below the horizon all day, though a brief civil twilight around midday provides some dim natural light.`,
+    })
+  }
+
+  // Q4: Activity / planning — contextual based on daylight level
+  if (!stats.allMidnightSun && !stats.allPolarNight) {
+    if (avgHours >= 14) {
+      faqs.push({
+        q: `Can I play golf or hike late in the day in ${cityName} in ${monthName}?`,
+        a: `Yes — with sunset at ${lastSs} by the end of ${monthName}, there is plenty of light for after-work outdoor plans in ${cityName}. Golf rounds, evening hikes, and outdoor dining all benefit from the extended daylight.`,
+      })
+    } else if (avgHours >= 11 && gaining) {
+      faqs.push({
+        q: `Is ${monthName} a good time for outdoor activities in ${cityName}?`,
+        a: `${monthName} is a good — and improving — month for outdoor plans in ${cityName}. Days are lengthening noticeably${absChangeMin && absChangeMin >= 2 ? `, gaining around ${Math.round(absChangeMin)} minutes per day` : ''}, and by the end of the month evening activities become increasingly viable. Sunset reaches ${lastSs} by month's end.`,
+      })
+    } else if (avgHours >= 11) {
+      faqs.push({
+        q: `What outdoor activities work well in ${cityName} in ${monthName}?`,
+        a: `With around ${formatDuration(stats.avg)} of daylight per day, ${monthName} in ${cityName} supports most outdoor activities. Morning and evening both have usable light, with sunset around ${lastSs} by the end of the month.`,
+      })
+    } else if (avgHours >= 7 && !gaining) {
+      faqs.push({
+        q: `How should I plan outdoor activities in ${cityName} in ${monthName}?`,
+        a: `As days shorten through ${monthName} in ${cityName}, outdoor activities are best planned around midday. Sunset falls around ${lastSs} by the end of the month — evening plans become limited. Hiking and sport work best in the middle of the day.`,
+      })
+    } else {
+      faqs.push({
+        q: `How do short days in ${monthName} affect plans in ${cityName}?`,
+        a: `With only around ${formatDuration(stats.avg)} of daylight in ${monthName}, most natural light in ${cityName} falls in a narrow midday window. Outdoor plans need to centre on this window.${gaining ? ` The trend is upward from here — each week brings a few more minutes of light back.` : ` The December solstice marks the turning point after which every day grows longer.`}`,
+      })
+    }
+  } else if (stats.allMidnightSun) {
+    faqs.push({
+      q: `What is it like to experience midnight sun in ${cityName}?`,
+      a: `During ${monthName} ${year}, the sun never sets in ${cityName} — the sky stays bright all night. This makes it easy to be outdoors at any hour, but can disrupt sleep without blackout curtains. Golden hour lasts for hours around midnight, making it a favourite time for photographers.`,
+    })
+  }
+
+  // Q5: Midnight sun only for high-latitude cities; rate-of-change for everyone else
+  if (Math.abs(lat) >= 60 || stats.anyMidnightSun || stats.anyPolarNight) {
+    faqs.push({
+      q: `Does ${cityName} have midnight sun or polar night in ${monthName}?`,
       a: stats.allMidnightSun
-        ? `${cityName} is in midnight sun for the entire month of ${monthName} ${year} — daylight lasts all 24 hours every day.`
-        : stats.allPolarNight
-        ? `${cityName} is in polar night for the entire month of ${monthName} ${year} — the sun does not rise above the horizon.`
-        : `Daylight in ${cityName} in ${monthName} ${year} averages ${formatDuration(stats.avg)} per day, ranging from ${formatDuration(stats.min)} on the shortest day (the ${ordinal(stats.minDay)}) to ${formatDuration(stats.max)} on the longest day (the ${ordinal(stats.maxDay)}).`,
-    },
-    {
-      q: `When is the longest day of ${monthName} in ${cityName}?`,
-      a: stats.allMidnightSun
-        ? `Every day in ${monthName} ${year} is equally long — 24 hours of daylight — because of ${cityName}'s extreme latitude.`
-        : `The longest day in ${monthName} ${year} in ${cityName} is the ${ordinal(stats.maxDay)}, with ${formatDuration(stats.max)} of daylight.`,
-    },
-    {
-      q: `When is the shortest day of ${monthName} in ${cityName}?`,
-      a: stats.allPolarNight
-        ? `Every day is equally dark in ${monthName} ${year} in ${cityName} — the sun does not rise.`
-        : `The shortest day in ${monthName} ${year} in ${cityName} is the ${ordinal(stats.minDay)}, with ${formatDuration(stats.min)} of daylight.`,
-    },
-    {
-      q: `Does ${cityName} have midnight sun in ${monthName}?`,
-      a: stats.anyMidnightSun
+        ? `Yes — ${cityName} is in midnight sun for the entire month of ${monthName} ${year}. The sun stays above the horizon all 24 hours every day.`
+        : stats.anyMidnightSun
         ? `Yes — ${cityName} experiences midnight sun on some days in ${monthName} ${year}. The sun stays above the horizon all 24 hours on those days.`
-        : isSummerMonth && hemisphere !== 'equatorial'
-        ? `No — ${cityName} does not have midnight sun in ${monthName}, but daylight is at its longest during this season.`
-        : `No — ${cityName}'s latitude is below the Arctic / Antarctic Circle (66.5°), so the sun rises and sets every day.`,
-    },
-    {
-      q: `What time does the sun rise and set in ${cityName} in ${monthName}?`,
-      a: stats.allMidnightSun
-        ? `In ${monthName} ${year}, the sun does not rise or set in ${cityName} — it stays above the horizon all month.`
         : stats.allPolarNight
-        ? `In ${monthName} ${year}, the sun does not rise above the horizon in ${cityName}.`
-        : `Sunrise and sunset shift several minutes each day in ${monthName} ${year}. See the calendar above for the exact time each day in ${cityName}, ${country}.`,
-    },
-  ]
+        ? `Yes — ${cityName} is in polar night for all of ${monthName} ${year}. The sun does not rise above the horizon.`
+        : stats.anyPolarNight
+        ? `Yes — ${cityName} has some days of polar night in ${monthName} ${year}.`
+        : `Not in ${monthName} — but ${cityName}'s latitude of ${lat.toFixed(1)}° means midnight sun and polar night occur in other months of the year.`,
+    })
+  } else if (absChangeMin != null && absChangeMin >= 1 && totalChangeDesc) {
+    faqs.push({
+      q: `How does daylight change through ${monthName} in ${cityName}?`,
+      a: `Days ${gaining ? 'lengthen' : 'shorten'} by around ${absChangeMin.toFixed(0)} minute${absChangeMin >= 1.5 ? 's' : ''} per day through ${monthName} in ${cityName}. From the 1st to the last day of the month, the total shift is ${totalChangeDesc} of daylight${absChangeMin >= 3 ? ' — one of the fastest-changing months of the year' : ''}.`,
+    })
+  } else {
+    faqs.push({
+      q: `Is ${monthName} close to the longest or shortest day of the year in ${cityName}?`,
+      a: avgHours >= 10
+        ? `Yes — ${monthName} is near ${cityName}'s annual peak daylight around the June solstice. Days change by less than a minute per day, staying consistently bright throughout the month.`
+        : `Yes — ${monthName} is near ${cityName}'s annual minimum daylight around the December solstice. Days change very slowly and stay consistently dark throughout the month.`,
+    })
+  }
+
+  return faqs
 }
 
 function ordinal(n: number): string {
@@ -256,6 +339,13 @@ export default function CityMonthPage({ params }: { params: Params }) {
     year,
     stats,
     hemisphere: hemisphereOf(city.lat),
+    lat: city.lat,
+    timezone: city.timezone,
+    firstSunset: days[0]?.sunset,
+    lastSunset: days[days.length - 1]?.sunset,
+    firstDaylight: days[0]?.daylightSeconds,
+    lastDaylight: days[days.length - 1]?.daylightSeconds,
+    totalDays: days.length,
   })
 
   const jsonLd = {

@@ -72,7 +72,13 @@ export function MonthBrowser({
             const label = tileLabel(s.avgSeconds)
 
             return (
-              <li key={m.slug}>
+              <li key={m.slug} className="relative">
+                {/* Badge on <li> so it isn't clipped by the Link's overflow-hidden */}
+                {isNow && (
+                  <span className="pointer-events-none absolute -top-2.5 left-1/2 z-20 -translate-x-1/2 rounded-full bg-sungglow px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-widecaps text-bg-deepest shadow">
+                    {highlightLabel}
+                  </span>
+                )}
                 <Link
                   href={`/${citySlug}/${m.slug}`}
                   aria-label={`${m.name} in ${cityName} — average daylight ${label}. See day-by-day calendar.`}
@@ -110,12 +116,6 @@ export function MonthBrowser({
                       {label}
                     </span>
                   </div>
-
-                  {isNow && (
-                    <span className="pointer-events-none absolute -top-2 left-1/2 z-20 -translate-x-1/2 rounded-full bg-sungglow px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-widecaps text-bg-deepest shadow">
-                      {highlightLabel}
-                    </span>
-                  )}
                 </Link>
               </li>
             )
