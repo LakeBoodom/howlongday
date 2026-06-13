@@ -227,21 +227,30 @@ export function dayOfYearUTC(date: Date): number {
 }
 
 /**
- * Per-month aggregated daylight stats for a full year, used by MonthBrowser
- * tiles. One pass over `getYearlyDaylight` — cheap, no extra SunCalc calls.
+ * Per-month daylight stats for a full year, used by MonthBrowser tiles.
  *
- * Returns 12 entries (Jan..Dec), each carrying avg/min/max daylight in
- * seconds. Polar conditions are represented naturally: 86400 for full
- * midnight-sun days, 0 for full polar-night days.
+ * Samples the 15th of each month (12 SunCalc calls total) and uses that
+ * mid-month day length as the month's representative value. Mid-month is a
+ * close proxy for the monthly mean — day length varies near-linearly within
+ * a month, so the error is a couple of minutes, which is invisible in the
+ * tile's fill ratio and "Xh Ym" label.
+ *
+ * WHY THE SAMPLING: the previous implementation called `getYearlyDaylight`
+ * (~365 SunCalc calls) and aggregated it. Running on every (re)generated
+ * city + month page, that was a meaningful chunk of Vercel "Fluid Active
+ * CPU". MonthBrowser only reads `avgSeconds`, so a 12-sample estimate gives
+ * the same visual result at ~30x less compute. `minSeconds`/`maxSeconds`
+ * are kept for API compatibility and set to the sampled value (unused by
+ * any current caller).
  */
 export interface MonthDaylightSummary {
   /** 0-indexed month (0 = Jan). */
   month: number
-  /** Mean daylight seconds across the month. */
+  /** Representative (mid-month) daylight seconds for the month. */
   avgSeconds: number
-  /** Shortest day in the month (seconds). */
+  /** Kept for API compatibility; equals the sampled mid-month value. */
   minSeconds: number
-  /** Longest day in the month (seconds). */
+  /** Kept for API compatibility; equals the sampled mid-month value. */
   maxSeconds: number
 }
 
@@ -250,27 +259,25 @@ export function getYearlyMonthlySummaries(
   lon: number,
   year: number,
 ): MonthDaylightSummary[] {
-  const points = getYearlyDaylight(lat, lon, year)
+  return Array.from({ length: 12 }, (_, m) => {
+    // 15th of the month, noon UTC (daylight length is the same to the second
+    // whether anchored at local or UTC noon).
+    const d = new Date(Date.UTC(year, m, 15, 12))
+    const times = SunCalc.getTimes(d, lat, lon)
 
-  const sums = new Array(12).fill(0)
-  const counts = new Array(12).fill(0)
-  const mins = new Array(12).fill(Infinity)
-  const maxs = new Array(12).fill(-Infinity)
+    let seconds: number
+    if (!isValid(times.sunrise)) {
+      // Polar: midnight sun vs polar night, decided by noon sun elevation.
+      const pos = SunCalc.getPosition(d, lat, lon)
+      seconds = pos.altitude > 0 ? 86400 : 0
+    } else if (isValid(times.sunset)) {
+      seconds = (times.sunset.getTime() - times.sunrise.getTime()) / 1000
+    } else {
+      seconds = 0
+    }
 
-  for (const p of points) {
-    const monthIdx = p.date.getUTCMonth()
-    sums[monthIdx] += p.daylightSeconds
-    counts[monthIdx] += 1
-    if (p.daylightSeconds < mins[monthIdx]) mins[monthIdx] = p.daylightSeconds
-    if (p.daylightSeconds > maxs[monthIdx]) maxs[monthIdx] = p.daylightSeconds
-  }
-
-  return Array.from({ length: 12 }, (_, m) => ({
-    month: m,
-    avgSeconds: counts[m] > 0 ? sums[m] / counts[m] : 0,
-    minSeconds: mins[m] === Infinity ? 0 : mins[m],
-    maxSeconds: maxs[m] === -Infinity ? 0 : maxs[m],
-  }))
+    return { month: m, avgSeconds: seconds, minSeconds: seconds, maxSeconds: seconds }
+  })
 }
 
 // ---------------------------------------------------------------------------

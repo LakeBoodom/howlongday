@@ -6,8 +6,6 @@ import { LocalSnapshot } from '@/components/LocalSnapshot'
 import { getCityBySlug } from '@/lib/cities'
 import {
   getSolarSnapshot,
-  getYearlyDaylight,
-  dayOfYearUTC,
   formatLocalTime,
   formatDuration,
 } from '@/lib/astronomy'
@@ -38,8 +36,6 @@ export default function Home() {
   const helsinki = getCityBySlug('helsinki')!
   const snap = getSolarSnapshot(now, helsinki.lat, helsinki.lon)
   const sky = getSkyGradient(snap.elevationDeg, snap.isAfterNoon)
-  const yearlyHelsinki = getYearlyDaylight(helsinki.lat, helsinki.lon, year)
-  const todayIndex = dayOfYearUTC(now)
   const currentMonthSlug = MONTH_SLUGS[now.getUTCMonth()]
 
   return (
@@ -118,8 +114,8 @@ export default function Home() {
 
       {/* Yearly daylight chart preview for Helsinki */}
       <YearlyDaylight
-        data={yearlyHelsinki}
-        todayIndex={todayIndex}
+        lat={helsinki.lat}
+        lon={helsinki.lon}
         year={year}
         cityName={helsinki.name}
       />

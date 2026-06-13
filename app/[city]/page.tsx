@@ -20,9 +20,7 @@ import {
 import {
   getSolarSnapshot,
   getMaxDaylight,
-  getYearlyDaylight,
   getYearlyMonthlySummaries,
-  dayOfYearUTC,
   formatLocalDate,
   formatLocalTime,
   formatDuration,
@@ -160,8 +158,6 @@ export default function CityPage({ params }: { params: Params }) {
   const year = now.getUTCFullYear()
   const maxDaylight = getMaxDaylight(city.lat, city.lon, year)
   const daylightPct = maxDaylight > 0 ? (snap.daylightSeconds / maxDaylight) * 100 : 0
-  const yearlyDaylight = getYearlyDaylight(city.lat, city.lon, year)
-  const todayIndex = dayOfYearUTC(now)
   const monthLabel = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     timeZone: city.timezone,
@@ -258,8 +254,8 @@ export default function CityPage({ params }: { params: Params }) {
       />
 
       <YearlyDaylight
-        data={yearlyDaylight}
-        todayIndex={todayIndex}
+        lat={city.lat}
+        lon={city.lon}
         year={year}
         cityName={city.name}
       />

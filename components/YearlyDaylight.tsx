@@ -1,5 +1,7 @@
+'use client'
+
 /**
- * Yearly daylight chart — inline SVG, no client JS, no chart library.
+ * Yearly daylight chart — inline SVG, computed in the BROWSER.
  *
  * Plots daylight-length-in-hours over a full calendar year. The curve
  * is stroked with a horizontal linear gradient (cool ends → warm middle),
@@ -8,14 +10,28 @@
  *
  * Today's point is highlighted with a pulsing gold dot. Approximate
  * solstices and equinoxes are drawn as faint vertical lines.
+ *
+ * WHY CLIENT-SIDE: the chart needs a full year of daylight samples
+ * (~365 SunCalc calls). Doing that on the server during ISR generation
+ * was the single biggest driver of Vercel "Fluid Active CPU" usage —
+ * it ran on every (re)generated city page, including the long tail.
+ * The curve is purely decorative for SEO (the indexable sunrise/sunset
+ * numbers and prose are still server-rendered elsewhere on the page),
+ * so we compute it in the visitor's browser via useEffect — which never
+ * runs during SSR/ISR. Bonus: the "today" marker is now genuinely live
+ * instead of frozen at the cache-write time.
  */
 
-import type { DaylightPoint } from '@/lib/astronomy'
+import { useEffect, useState } from 'react'
+import {
+  getYearlyDaylight,
+  dayOfYearUTC,
+  type DaylightPoint,
+} from '@/lib/astronomy'
 
 interface Props {
-  data: DaylightPoint[]
-  /** 0-based index of today's data point, or null if not in this year. */
-  todayIndex: number | null
+  lat: number
+  lon: number
   year: number
   cityName: string
 }
@@ -43,8 +59,46 @@ function formatHM(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
-export function YearlyDaylight({ data, todayIndex, year, cityName }: Props) {
-  if (data.length === 0) return null
+export function YearlyDaylight({ lat, lon, year, cityName }: Props) {
+  // Compute the year's daylight curve in the browser only — useEffect does
+  // not run during SSR/ISR, so this keeps ~365 SunCalc calls off the server.
+  const [computed, setComputed] = useState<{
+    data: DaylightPoint[]
+    todayIndex: number | null
+  } | null>(null)
+
+  useEffect(() => {
+    const data = getYearlyDaylight(lat, lon, year)
+    const now = new Date()
+    const todayIndex =
+      now.getUTCFullYear() === year ? dayOfYearUTC(now) : null
+    setComputed({ data, todayIndex })
+  }, [lat, lon, year])
+
+  // Pre-hydration / pre-compute placeholder. Sized to roughly match the
+  // chart so the layout doesn't jump when the curve appears.
+  if (!computed || computed.data.length === 0) {
+    return (
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="mb-6">
+            <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+              {year} · annual cycle
+            </p>
+            <h2 className="mt-2 text-balance font-semibold text-white text-2xl sm:text-3xl">
+              Daylight throughout the year in {cityName}
+            </h2>
+          </div>
+          <div
+            aria-hidden
+            className="h-[160px] animate-pulse rounded-2xl border border-white/5 bg-white/[0.025] sm:h-[260px]"
+          />
+        </div>
+      </section>
+    )
+  }
+
+  const { data, todayIndex } = computed
 
   // y-axis range: hours, rounded up to a multiple of 6 for tidy ticks
   const maxSec = data.reduce((m, p) => (p.daylightSeconds > m ? p.daylightSeconds : m), 0)
