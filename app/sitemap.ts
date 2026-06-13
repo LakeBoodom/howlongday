@@ -21,9 +21,16 @@
 import type { MetadataRoute } from 'next'
 import { getTopCities } from '@/lib/cities'
 import { MONTHS } from '@/lib/months'
-import citiesData from '@/data/cities.json'
 
 const BASE = 'https://howlongday.com'
+
+// Only the top N cities by population are advertised in the sitemap. The
+// ~44k long-tail villages are ISR-on-demand and have negligible search
+// demand, but crawlers walking them all 24/7 drove Vercel free-tier usage
+// over its ISR / function-invocation limit. Tail pages still resolve on
+// direct request — they are just not exposed to crawlers. Raise this once
+// on a paid plan or after tail pages are made fully static.
+const SITEMAP_CITY_LIMIT = 5000
 
 interface CityRow {
   slug: string
@@ -40,7 +47,8 @@ export default async function sitemap(
 
   if (id === 'cities') {
     const topSlugs = new Set(getTopCities(1000).map((c) => c.slug))
-    const all = citiesData as CityRow[]
+    // Cap the advertised crawl surface to the top cities by population.
+    const all = getTopCities(SITEMAP_CITY_LIMIT) as CityRow[]
     const entries: MetadataRoute.Sitemap = [
       {
         url: BASE,
