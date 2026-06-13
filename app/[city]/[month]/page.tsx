@@ -70,11 +70,11 @@ export async function generateMetadata(
     ? `${city.name} stays in midnight sun throughout ${month.name} ${year} — 24 hours of daylight every day.`
     : stats.allPolarNight
     ? `${city.name} is in polar night throughout ${month.name} ${year} — the sun does not rise.`
-    : `Daylight in ${city.name}, ${city.country} in ${month.name} ${year}: average ${formatDuration(stats.avg)}, longest ${formatDuration(stats.max)}, shortest ${formatDuration(stats.min)}.`
+    : `Sunrise, sunset and daylight for every day of ${month.name} ${year} in ${city.name}, ${city.country}. Average daylight ${formatDuration(stats.avg)}, from ${formatDuration(stats.min)} to ${formatDuration(stats.max)}.`
 
   const canonical = `https://howlongday.com/${city.slug}/${month.slug}`
   return {
-    title: `Daylight in ${city.name} in ${month.name} ${year}`,
+    title: `${city.name} Sunrise & Sunset Times in ${month.name} ${year}`,
     description: desc,
     alternates: { canonical },
     openGraph: {

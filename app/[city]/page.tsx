@@ -68,7 +68,7 @@ export async function generateMetadata(
     : `Today in ${city.name}, ${city.country}: sunrise ${sunrise}, sunset ${sunset}. Daylight ${daylight}.`
   const canonical = `https://howlongday.com/${city.slug}`
   return {
-    title: `${city.name} Sunrise & Sunset Today | HowLongDay`,
+    title: `${city.name} Sunrise & Sunset Times Today`,
     description: desc,
     alternates: { canonical },
     openGraph: {
