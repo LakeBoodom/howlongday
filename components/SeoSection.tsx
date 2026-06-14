@@ -20,6 +20,7 @@ interface Props {
   snap: SolarSnapshot
   monthLabel: string  // "May"
   isHighLatitude: boolean
+  extraFaq?: FaqEntry[]
 }
 
 function buildFaq({
@@ -76,7 +77,7 @@ function buildFaq({
 
 export function SeoSection(props: Props) {
   const { city, snap, monthLabel } = props
-  const faqs = buildFaq(props)
+  const faqs = [...buildFaq(props), ...(props.extraFaq ?? [])]
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -107,9 +108,9 @@ export function SeoSection(props: Props) {
       />
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
         <div>
-          <h1 className="text-balance text-3xl font-semibold leading-tight text-white sm:text-4xl">
+          <h2 className="text-balance text-3xl font-semibold leading-tight text-white sm:text-4xl">
             How long is the day in {city.name} today?
-          </h1>
+          </h2>
           <p className="mt-5 max-w-prose text-base leading-relaxed text-neutral-2">
             {intro}
           </p>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { cache } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -7,8 +8,10 @@ import { HeroSky } from '@/components/HeroSky'
 import { DataCards } from '@/components/DataCards'
 import { SecondaryRow } from '@/components/SecondaryRow'
 import { SeoSection } from '@/components/SeoSection'
+import { DaylightProfile } from '@/components/DaylightProfile'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
 import { MonthBrowser } from '@/components/MonthBrowser'
+import { getSunProfile, todaySunFrom, buildLatitudeFaq } from '@/lib/sunProfile'
 
 import {
   getCityBySlug,
@@ -49,6 +52,14 @@ export async function generateStaticParams() {
 // Any slug not in the prebuilt list is generated on-demand.
 export const dynamicParams = true
 
+// Today's solar snapshot, memoized per-request so generateMetadata and the
+// page component share one computation instead of each calling SunCalc.
+const getCitySnapshot = cache((slug: string) => {
+  const city = getCityBySlug(slug)
+  if (!city) return null
+  return getSolarSnapshot(new Date(), city.lat, city.lon)
+})
+
 export async function generateMetadata(
   { params }: { params: Params },
 ): Promise<Metadata> {
@@ -56,8 +67,7 @@ export async function generateMetadata(
   if (!city) {
     return { title: 'City not found' }
   }
-  const now = new Date()
-  const snap = getSolarSnapshot(now, city.lat, city.lon)
+  const snap = getCitySnapshot(params.city)!
   const sunrise = formatLocalTime(snap.sunrise, city.timezone)
   const sunset = formatLocalTime(snap.sunset, city.timezone)
   const daylight = formatDuration(snap.daylightSeconds)
@@ -153,10 +163,14 @@ export default function CityPage({ params }: { params: Params }) {
   if (!city) notFound()
 
   const now = new Date()
-  const snap = getSolarSnapshot(now, city.lat, city.lon)
+  const snap = getCitySnapshot(params.city)!
   const sky = getSkyGradient(snap.elevationDeg, snap.isAfterNoon)
   const year = now.getUTCFullYear()
-  const maxDaylight = getMaxDaylight(city.lat, city.lon, year)
+  const profile = getSunProfile(city.slug)
+  const maxDaylight = profile
+    ? profile.maxDayMin * 60
+    : getMaxDaylight(city.lat, city.lon, year)
+  const todaySun = profile ? todaySunFrom(snap, city.timezone) : null
   const daylightPct = maxDaylight > 0 ? (snap.daylightSeconds / maxDaylight) * 100 : 0
   const monthLabel = new Intl.DateTimeFormat('en-US', {
     month: 'long',
@@ -175,9 +189,16 @@ export default function CityPage({ params }: { params: Params }) {
   // ISR writes per city; the YearlyDaylight chart below serves as their
   // cross-month overview instead.
   const showMonthBrowser = isTopCity(city.slug, 1000)
-  const monthSummaries = showMonthBrowser
-    ? getYearlyMonthlySummaries(city.lat, city.lon, year)
-    : null
+  const monthSummaries = !showMonthBrowser
+    ? null
+    : profile
+    ? profile.monthlyAvgMin.map((m, i) => ({
+        month: i,
+        avgSeconds: m * 60,
+        minSeconds: m * 60,
+        maxSeconds: m * 60,
+      }))
+    : getYearlyMonthlySummaries(city.lat, city.lon, year)
   // City's local month index (0..11), so the "Now" badge respects timezone.
   const cityLocalMonthIndex =
     parseInt(
@@ -251,7 +272,17 @@ export default function CityPage({ params }: { params: Params }) {
         snap={snap}
         monthLabel={monthLabel}
         isHighLatitude={isHighLatitude}
+        extraFaq={profile ? buildLatitudeFaq(city, profile) : []}
       />
+
+      {profile && todaySun && (
+        <DaylightProfile
+          city={city}
+          profile={profile}
+          today={todaySun}
+          year={year}
+        />
+      )}
 
       <YearlyDaylight
         lat={city.lat}
