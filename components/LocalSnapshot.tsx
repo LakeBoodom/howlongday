@@ -3,10 +3,12 @@
 /**
  * LocalSnapshot — "Right now in [your city]" section on the homepage.
  *
- * Server renders with the Helsinki default (passed as props), then on mount
- * silently requests the browser's geolocation. If the user approves, fetches
- * /api/nearby and swaps the display to their actual city. If denied or on
- * error, the Helsinki default stays — no flicker, no error state shown.
+ * Server renders with the default city (passed as props). On mount it calls
+ * /api/nearby with NO browser-permission prompt — the endpoint infers an
+ * approximate location from the visitor's IP (Vercel geo headers) and returns
+ * their nearest city. A visitor who wants pinpoint accuracy can opt in via the
+ * "use exact location" link, which is the only thing that triggers the browser
+ * geolocation prompt. If anything fails, the default city stays.
  */
 
 import { useState, useEffect } from 'react'
@@ -32,7 +34,26 @@ export function LocalSnapshot({ defaultCity }: Props) {
   const [city, setCity] = useState<CitySnapshot>(defaultCity)
   const [status, setStatus] = useState<'idle' | 'detecting' | 'done'>('idle')
 
+  // On load: silent IP-based lookup, no permission prompt.
   useEffect(() => {
+    let cancelled = false
+    setStatus('detecting')
+    fetch('/api/nearby')
+      .then((res) => (res.status === 200 ? res.json() : null))
+      .then((data: CitySnapshot | null) => {
+        if (!cancelled && data?.slug) setCity(data)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setStatus('done')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Opt-in: only this triggers the browser geolocation permission prompt.
+  function useExactLocation() {
     if (!navigator.geolocation) return
     setStatus('detecting')
     navigator.geolocation.getCurrentPosition(
@@ -41,23 +62,20 @@ export function LocalSnapshot({ defaultCity }: Props) {
           const res = await fetch(
             `/api/nearby?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`,
           )
-          if (res.ok) {
+          if (res.status === 200) {
             const data: CitySnapshot = await res.json()
-            setCity(data)
+            if (data?.slug) setCity(data)
           }
         } catch {
-          // silently fall back to default
+          // keep current city
         } finally {
           setStatus('done')
         }
       },
-      () => {
-        // permission denied or unavailable — keep default
-        setStatus('done')
-      },
+      () => setStatus('done'),
       { timeout: 6000 },
     )
-  }, [])
+  }
 
   const isLocal = status === 'done' && city.slug !== defaultCity.slug
 
@@ -81,6 +99,14 @@ export function LocalSnapshot({ defaultCity }: Props) {
             See full {city.name} page →
           </Link>
         </div>
+
+        <button
+          type="button"
+          onClick={useExactLocation}
+          className="mt-2 text-[0.8rem] text-neutral-4 underline decoration-white/20 underline-offset-2 hover:text-neutral-2"
+        >
+          Not your city? Use exact location
+        </button>
 
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <SnapCard

@@ -1,17 +1,24 @@
 /**
- * GET /api/nearby?lat=XX&lon=YY
+ * GET /api/nearby
  *
- * Returns the nearest city (by Euclidean distance on lat/lon) plus today's
- * solar snapshot for that city. Used by the homepage LocalSnapshot client
- * component to replace the default Helsinki card with the user's own city.
+ * Returns the nearest city + today's solar snapshot for the visitor.
  *
- * Performance note: iterating ~49k cities with a simple distance comparison
- * takes ~1–2 ms server-side — well within acceptable API route latency.
+ * Location source, in order:
+ *   1. ?lat=&lon= query params  — used by the optional "use exact location"
+ *      opt-in (browser geolocation), which the user must click.
+ *   2. Vercel IP-geolocation headers (x-vercel-ip-latitude/longitude) — the
+ *      default, server-side, NO browser permission prompt.
+ *   3. Neither available (e.g. local dev) → 204, client keeps its default city.
+ *
+ * Caching: responses are per-visitor (IP-derived), so they MUST be `private`
+ * — never let the shared CDN cache one visitor's city and serve it to others.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSolarSnapshot, formatLocalTime, formatDuration } from '@/lib/astronomy'
 import citiesData from '@/data/cities.json'
+
+export const dynamic = 'force-dynamic'
 
 interface CityRow {
   name: string
@@ -23,6 +30,26 @@ interface CityRow {
 }
 
 const cities = citiesData as CityRow[]
+
+function validCoord(lat: number, lon: number): boolean {
+  return (
+    !isNaN(lat) && !isNaN(lon) &&
+    lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
+  )
+}
+
+function coordsFrom(req: NextRequest): { lat: number; lon: number } | null {
+  const sp = new URL(req.url).searchParams
+  const qLat = parseFloat(sp.get('lat') ?? '')
+  const qLon = parseFloat(sp.get('lon') ?? '')
+  if (validCoord(qLat, qLon)) return { lat: qLat, lon: qLon }
+
+  const hLat = parseFloat(req.headers.get('x-vercel-ip-latitude') ?? '')
+  const hLon = parseFloat(req.headers.get('x-vercel-ip-longitude') ?? '')
+  if (validCoord(hLat, hLon)) return { lat: hLat, lon: hLon }
+
+  return null
+}
 
 function findNearestCity(lat: number, lon: number): CityRow {
   let best = cities[0]
@@ -40,17 +67,14 @@ function findNearestCity(lat: number, lon: number): CityRow {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const lat = parseFloat(searchParams.get('lat') ?? '')
-  const lon = parseFloat(searchParams.get('lon') ?? '')
-
-  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-    return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 })
+  const coords = coordsFrom(req)
+  if (!coords) {
+    // No location available — client keeps its server-rendered default city.
+    return new NextResponse(null, { status: 204 })
   }
 
-  const city = findNearestCity(lat, lon)
-  const now = new Date()
-  const snap = getSolarSnapshot(now, city.lat, city.lon)
+  const city = findNearestCity(coords.lat, coords.lon)
+  const snap = getSolarSnapshot(new Date(), city.lat, city.lon)
 
   return NextResponse.json(
     {
@@ -66,8 +90,9 @@ export async function GET(req: NextRequest) {
     },
     {
       headers: {
-        // Cache for 10 minutes — solar times don't change meaningfully faster
-        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=60',
+        // Per-visitor (IP-derived) — must stay private so the CDN never serves
+        // one visitor's city to another. Browser may reuse for 5 min.
+        'Cache-Control': 'private, max-age=300',
       },
     },
   )
