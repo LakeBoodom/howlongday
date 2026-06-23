@@ -15,7 +15,6 @@ import { getSunProfile, todaySunFrom, buildLatitudeFaq } from '@/lib/sunProfile'
 
 import {
   getCityBySlug,
-  getTopCities,
   getCitiesByCountry,
   isTopCity,
   type City,
@@ -31,26 +30,22 @@ import {
 } from '@/lib/astronomy'
 import { getSkyGradient } from '@/lib/sky'
 
-// Per-page ISR — daylight data (sunrise/sunset/length) is per-date and stable
-// within a day, so revalidating daily is plenty. The sun-elevation visual in
-// the hero will be stale within a day (it reflects the time the cache was
-// last written); accepted as a trade-off for keeping ISR Writes within
-// Vercel's free-tier limit. Long-term fix: move the live sun position to a
-// client component so the cached HTML stays fresh-looking all day.
-export const revalidate = 86400
+// Dynamic server rendering — the daylight dashboard is per-date "today" data,
+// so every request renders fresh in the city's local timezone. This guarantees
+// the raw HTML Googlebot receives already shows the correct current date,
+// sunrise/sunset and "next solstice" (no stale cached date, no reliance on
+// client-side JS to fix it after hydration). Per request it costs only a
+// handful of SunCalc calls — the heavy 365-day chart is computed in the browser
+// (<YearlyDaylight>). Crucially it writes NOTHING to the ISR cache: the previous
+// `revalidate = 86400` rewrote every crawled page once a day and, across ~49k
+// cities, blew past Vercel's free 200k ISR Writes/mo. True daily freshness for
+// 49k pages via ISR would need ~1.5M writes/mo, so dynamic rendering is the
+// correct model at this scale (cost lands on Active CPU, which stays tiny).
+export const dynamic = 'force-dynamic'
 
 interface Params {
   city: string
 }
-
-export async function generateStaticParams() {
-  // Prebuild the top 1000 cities by population. The remaining ~48k generate
-  // on first request via ISR (dynamicParams=true) and are cached for 1h.
-  return getTopCities(1000).map((c) => ({ city: c.slug }))
-}
-
-// Any slug not in the prebuilt list is generated on-demand.
-export const dynamicParams = true
 
 // Today's solar snapshot, memoized per-request so generateMetadata and the
 // page component share one computation instead of each calling SunCalc.
@@ -182,12 +177,10 @@ export default function CityPage({ params }: { params: Params }) {
   const isHighLatitude = Math.abs(city.lat) >= 66.5
   const nearby = getNearbyCities(city)
 
-  // "Plan ahead" 12-month browser. Gated to the top-1000 SSG-prebuilt city
-  // set — that covers every city we surface as a CTA (Helsinki, Stockholm,
-  // Anchorage, Sydney, Tokyo, etc.) while keeping ISR cost bounded. For the
-  // ~48k tail cities a linked 12-tile grid would let Googlebot trigger 12
-  // ISR writes per city; the YearlyDaylight chart below serves as their
-  // cross-month overview instead.
+  // "Plan ahead" 12-month browser. Gated to the top-1000 city set — that covers
+  // every city we surface as a CTA (Helsinki, Stockholm, Anchorage, Sydney,
+  // Tokyo, etc.). For the ~48k tail cities the YearlyDaylight chart below
+  // serves as their cross-month overview instead.
   const showMonthBrowser = isTopCity(city.slug, 1000)
   const monthSummaries = !showMonthBrowser
     ? null
