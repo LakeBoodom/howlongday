@@ -4,6 +4,7 @@ import { CitySearch } from '@/components/CitySearch'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
 import { LocalSnapshot } from '@/components/LocalSnapshot'
 import { getCityBySlug } from '@/lib/cities'
+import { COUNTRY_HUBS } from '@/lib/countries'
 import {
   getSolarSnapshot,
   formatLocalTime,
@@ -173,6 +174,44 @@ export default function Home() {
                 Sydney in January
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Browse by country + guides */}
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+            Browse by country
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {COUNTRY_HUBS.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/country/${c.slug}`}
+                className="rounded-full border border-white/15 bg-white/[0.04] px-4 py-1.5 text-sm font-medium text-white/85 transition hover:border-white/30 hover:text-white"
+              >
+                {c.name.replace(/^the /, '')}
+              </Link>
+            ))}
+          </div>
+
+          <p className="mt-10 text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+            Guides
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/guides/longest-day-around-the-world"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+            >
+              The longest day around the world →
+            </Link>
+            <Link
+              href="/guides/best-cities-for-long-summer-evenings"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+            >
+              Best cities for long summer evenings →
+            </Link>
           </div>
         </div>
       </section>

@@ -13,6 +13,7 @@ import { DaylightProfile } from '@/components/DaylightProfile'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
 import { MonthBrowser } from '@/components/MonthBrowser'
 import { getSunProfile, todaySunFrom, buildLatitudeFaq } from '@/lib/sunProfile'
+import { nameWithAlias } from '@/lib/aliases'
 
 import {
   getCityBySlug,
@@ -67,21 +68,26 @@ export async function generateMetadata(
   const sunrise = formatLocalTime(snap.sunrise, city.timezone)
   const sunset = formatLocalTime(snap.sunset, city.timezone)
   const daylight = formatDuration(snap.daylightSeconds)
+  // Include a common alias (e.g. "Bengaluru (Bangalore)") in title + meta so the
+  // page ranks for the alias query, which is often searched more than the
+  // official name in our dataset.
+  const displayName = nameWithAlias(city.slug, city.name)
+
   // Data-rich, absolute title (no "| HowLongDay" suffix) — the live daylight
   // figure makes it specific and CTR-worthy and keeps it fresh on each render.
   const title = snap.isMidnightSun
-    ? `${city.name} Today – Midnight Sun & Daylight Hours`
+    ? `${displayName} Today – Midnight Sun & Daylight Hours`
     : snap.isPolarNight
-    ? `${city.name} Today – Polar Night & Daylight Hours`
-    : `Sunrise & Sunset in ${city.name} Today – ${daylight} of Daylight`
+    ? `${displayName} Today – Polar Night & Daylight Hours`
+    : `Sunrise & Sunset in ${displayName} Today – ${daylight} of Daylight`
 
   // Description leads with concrete numbers (CTR) and signals the planner depth
   // (golden hour, 7-day forecast) that the SERP instant answer cannot show.
   const desc = snap.isMidnightSun
-    ? `${city.name} is in midnight sun — daylight all 24 hours today. Track golden hour, how daylight is changing and a 7-day forecast, in ${city.timezone} time.`
+    ? `${displayName} is in midnight sun — daylight all 24 hours today. Track golden hour, how daylight is changing and a 7-day forecast, in ${city.timezone} time.`
     : snap.isPolarNight
-    ? `${city.name} is in polar night — the sun does not rise today. See when daylight returns, plus golden hour and a 7-day forecast, in ${city.timezone} time.`
-    : `${city.name} today: sunrise ${sunrise}, sunset ${sunset}, ${daylight} of daylight. Plus golden hour, blue hour and a 7-day daylight forecast — ${city.timezone} time.`
+    ? `${displayName} is in polar night — the sun does not rise today. See when daylight returns, plus golden hour and a 7-day forecast, in ${city.timezone} time.`
+    : `${displayName} today: sunrise ${sunrise}, sunset ${sunset}, ${daylight} of daylight. Plus golden hour, blue hour and a 7-day daylight forecast — ${city.timezone} time.`
 
   const canonical = `https://howlongday.com/${city.slug}`
   return {
@@ -237,11 +243,12 @@ export default function CityPage({ params }: { params: Params }) {
             {formatLocalDate(now, city.timezone)}
           </p>
           <h1 className="mt-3 text-balance font-semibold text-white text-4xl sm:text-5xl md:text-6xl">
-            {city.name}
+            {nameWithAlias(city.slug, city.name)}
             <span className="ml-3 align-baseline font-normal text-neutral-3 text-2xl sm:text-3xl md:text-4xl">
               {city.country}
             </span>
           </h1>
+
         </header>
 
         <div className="mx-auto max-w-6xl px-6 pb-16 sm:pb-20">
