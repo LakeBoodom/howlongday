@@ -56,6 +56,13 @@ export default async function sitemap(
         changeFrequency: 'daily',
         priority: 1.0,
       },
+      {
+        // Timely topical hub — advertise prominently while the tournament is on.
+        url: `${BASE}/world-cup-2026`,
+        lastModified: today,
+        changeFrequency: 'daily',
+        priority: 0.9,
+      },
     ]
     for (const c of all) {
       entries.push({

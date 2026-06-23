@@ -72,13 +72,21 @@ export async function generateMetadata(
     ? `${city.name} is in polar night throughout ${month.name} ${year} — the sun does not rise.`
     : `Sunrise, sunset and daylight for every day of ${month.name} ${year} in ${city.name}, ${city.country}. Average daylight ${formatDuration(stats.avg)}, from ${formatDuration(stats.min)} to ${formatDuration(stats.max)}.`
 
+  // Data-rich, absolute title (no "| HowLongDay" suffix) targeting the
+  // "{city} {month} {year} daily times" planning query.
+  const title = stats.allMidnightSun
+    ? `${city.name} in ${month.name} ${year} – Midnight Sun & Daylight Hours`
+    : stats.allPolarNight
+    ? `${city.name} in ${month.name} ${year} – Polar Night & Daylight Hours`
+    : `Sunrise & Sunset in ${city.name} in ${month.name} ${year} – Daily Times`
+
   const canonical = `https://howlongday.com/${city.slug}/${month.slug}`
   return {
-    title: `${city.name} Sunrise & Sunset Times in ${month.name} ${year}`,
+    title: { absolute: title },
     description: desc,
     alternates: { canonical },
     openGraph: {
-      title: `${city.name} sunrise & sunset in ${month.name}`,
+      title,
       description: desc,
       url: canonical,
       type: 'website',
@@ -288,6 +296,65 @@ function hemisphereOf(lat: number): 'north' | 'south' | 'equatorial' {
   return 'equatorial'
 }
 
+/** Minutes since local midnight for a UTC instant, in the given timezone. */
+function localMinutesOfDay(d: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d)
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24
+  const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
+  return h * 60 + m
+}
+
+interface KeyDate {
+  day: number
+  time: string
+}
+
+/**
+ * The month's earliest sunrise and latest sunset (by local clock time) — the
+ * "earliest sunrise in June" / "latest sunset" planning queries. Null in
+ * polar months where the sun does not rise/set.
+ */
+function computeKeyDates(
+  days: DaySolarSnapshot[],
+  timezone: string,
+): { earliestSunrise: KeyDate | null; latestSunset: KeyDate | null } {
+  let earliestSunrise: KeyDate | null = null
+  let latestSunset: KeyDate | null = null
+  let minRise = Infinity
+  let maxSet = -Infinity
+
+  for (const d of days) {
+    if (d.isMidnightSun || d.isPolarNight) continue
+    if (d.sunrise instanceof Date && !isNaN(d.sunrise.getTime())) {
+      const mins = localMinutesOfDay(d.sunrise, timezone)
+      if (mins < minRise) {
+        minRise = mins
+        earliestSunrise = { day: d.day, time: formatLocalTime(d.sunrise, timezone) }
+      }
+    }
+    if (d.sunset instanceof Date && !isNaN(d.sunset.getTime())) {
+      const mins = localMinutesOfDay(d.sunset, timezone)
+      if (mins > maxSet) {
+        maxSet = mins
+        latestSunset = { day: d.day, time: formatLocalTime(d.sunset, timezone) }
+      }
+    }
+  }
+  return { earliestSunrise, latestSunset }
+}
+
+/** "12 min more" / "8 min less" / "about the same". */
+function compareLabel(deltaSeconds: number): string {
+  const min = Math.round(deltaSeconds / 60)
+  if (Math.abs(min) < 2) return 'about the same as'
+  return min > 0 ? `${min} min more than` : `${Math.abs(min)} min less than`
+}
+
 // ----- Page -----------------------------------------------------------------
 
 export default function CityMonthPage({ params }: { params: Params }) {
@@ -325,12 +392,23 @@ export default function CityMonthPage({ params }: { params: Params }) {
   // ISR writes (10,800 = top-101..1000 × 12 months), revalidated every 30d,
   // well within Vercel's free-tier 200k/month limit.
   const cityIsPrebuilt = isTopCity(city.slug, 1000)
-  const prevMonth = cityIsPrebuilt ? MONTHS[(month.index + 11) % 12] : null
-  const nextMonth = cityIsPrebuilt ? MONTHS[(month.index + 1) % 12] : null
+  // Adjacent months — always computed for the comparison block below. Links to
+  // them are still gated to the prebuilt set (see below) so crawlers don't walk
+  // 12 ISR month pages per tail city.
+  const prevMonth = MONTHS[(month.index + 11) % 12]
+  const nextMonth = MONTHS[(month.index + 1) % 12]
 
-  const monthSummaries = cityIsPrebuilt
-    ? getYearlyMonthlySummaries(city.lat, city.lon, year)
-    : null
+  // 12-month averages (12 SunCalc samples) — used by the comparison block for
+  // all cities, and by MonthBrowser for the prebuilt set.
+  const yearSummaries = getYearlyMonthlySummaries(city.lat, city.lon, year)
+  const monthSummaries = cityIsPrebuilt ? yearSummaries : null
+
+  // Earliest sunrise / latest sunset this month + how it compares to neighbours.
+  const keyDates = computeKeyDates(days, city.timezone)
+  const avgThis = yearSummaries[month.index].avgSeconds
+  const avgPrev = yearSummaries[prevMonth.index].avgSeconds
+  const avgNext = yearSummaries[nextMonth.index].avgSeconds
+  const showComparison = !stats.allMidnightSun && !stats.allPolarNight
 
   const faq = buildFaq({
     cityName: city.name,
@@ -469,7 +547,7 @@ export default function CityMonthPage({ params }: { params: Params }) {
             <h2 className="font-semibold text-white text-2xl sm:text-3xl">
               Day by day
             </h2>
-            {prevMonth && nextMonth && (
+            {cityIsPrebuilt && (
               <div className="hidden gap-2 text-sm text-neutral-3 sm:flex">
                 <Link
                   href={`/${city.slug}/${prevMonth.slug}`}
@@ -505,6 +583,77 @@ export default function CityMonthPage({ params }: { params: Params }) {
           </div>
         </div>
       </section>
+
+      {/* Key dates this month + how it compares to neighbouring months */}
+      {(keyDates.earliestSunrise || keyDates.latestSunset || showComparison) && (
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-14 sm:py-16">
+          <h2 className="font-semibold text-white text-2xl sm:text-3xl">
+            {month.name} at a glance
+          </h2>
+
+          {(keyDates.earliestSunrise || keyDates.latestSunset) && (
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {keyDates.earliestSunrise && (
+                <div className="rounded-card border border-white/10 bg-white/[0.04] p-5">
+                  <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+                    Earliest sunrise
+                  </div>
+                  <div className="mt-2 font-semibold text-2xl tabular-nums text-sunrise">
+                    {keyDates.earliestSunrise.time}
+                  </div>
+                  <div className="mt-1 text-sm text-neutral-3">
+                    on the {ordinal(keyDates.earliestSunrise.day)}
+                  </div>
+                </div>
+              )}
+              {keyDates.latestSunset && (
+                <div className="rounded-card border border-white/10 bg-white/[0.04] p-5">
+                  <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+                    Latest sunset
+                  </div>
+                  <div className="mt-2 font-semibold text-2xl tabular-nums text-sunset">
+                    {keyDates.latestSunset.time}
+                  </div>
+                  <div className="mt-1 text-sm text-neutral-3">
+                    on the {ordinal(keyDates.latestSunset.day)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showComparison && (
+            <p className="mt-6 max-w-prose text-base leading-relaxed text-neutral-2">
+              {month.name} averages {formatDuration(avgThis)} of daylight in{' '}
+              {city.name} — {compareLabel(avgThis - avgPrev)}{' '}
+              {cityIsPrebuilt ? (
+                <Link
+                  href={`/${city.slug}/${prevMonth.slug}`}
+                  className="text-white underline-offset-2 hover:underline"
+                >
+                  {prevMonth.name}
+                </Link>
+              ) : (
+                prevMonth.name
+              )}{' '}
+              and {compareLabel(avgThis - avgNext)}{' '}
+              {cityIsPrebuilt ? (
+                <Link
+                  href={`/${city.slug}/${nextMonth.slug}`}
+                  className="text-white underline-offset-2 hover:underline"
+                >
+                  {nextMonth.name}
+                </Link>
+              ) : (
+                nextMonth.name
+              )}
+              .
+            </p>
+          )}
+        </div>
+      </section>
+      )}
 
       {monthSummaries && (
         <MonthBrowser

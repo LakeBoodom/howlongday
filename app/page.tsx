@@ -97,6 +97,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Timely: 2026 World Cup host-city daylight hub */}
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-5">
+          <Link
+            href="/world-cup-2026"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-daylight/25 bg-daylight/[0.06] px-5 py-4 transition hover:border-daylight/40"
+          >
+            <span className="text-sm text-white">
+              <span className="font-semibold text-daylight">World Cup 2026</span>{' '}
+              — sunrise, sunset &amp; daylight for all 16 host cities
+            </span>
+            <span className="text-sm font-medium text-daylight">
+              View host cities →
+            </span>
+          </Link>
+        </div>
+      </section>
+
       {/* Live snapshot — detects user location client-side, falls back to Helsinki */}
       <LocalSnapshot
         defaultCity={{
