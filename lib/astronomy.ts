@@ -141,6 +141,22 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Signed minute/second delta for the day-to-day daylight change column.
+ * "+3m 41s", "−2m 10s", "±0s". Uses a true minus sign for typography.
+ */
+export function formatSignedDuration(seconds: number): string {
+  const rounded = Math.round(seconds)
+  if (rounded === 0) return '±0s'
+  const sign = rounded > 0 ? '+' : '−'
+  const abs = Math.abs(rounded)
+  const m = Math.floor(abs / 60)
+  const s = abs % 60
+  if (m === 0) return `${sign}${s}s`
+  if (s === 0) return `${sign}${m}m`
+  return `${sign}${m}m ${s}s`
+}
+
+/**
  * Approximation of the city's annual maximum daylight, used to render the
  * "X% of peak" progress bar. We sample the local summer solstice for the
  * hemisphere — accurate within a few minutes.
@@ -350,4 +366,131 @@ export function getMonthlyDaylight(
   }
 
   return days
+}
+
+// ---------------------------------------------------------------------------
+// Upcoming days — the "Next 7 days" planner table + daylight-trend readout.
+// Cheap (one getTimes per day, getPosition only in polar edge cases), so it is
+// safe to compute server-side on the dynamic city page for crawlable HTML.
+// ---------------------------------------------------------------------------
+
+export interface UpcomingDay {
+  /** Anchor instant for this calendar day (`from` + i×24h). */
+  date: Date
+  /** UTC Date — format with the city timezone. Invalid in polar conditions. */
+  sunrise: Date
+  sunset: Date
+  /** 0..86400. 86400 = midnight sun, 0 = polar night. */
+  daylightSeconds: number
+  isMidnightSun: boolean
+  isPolarNight: boolean
+}
+
+/**
+ * Sunrise/sunset/daylight for `count` consecutive days starting at `from`
+ * (default: now). Anchored on the running instant + i×24h; daylight length is
+ * stable to the second regardless of the within-day anchor, and times are
+ * formatted with the city timezone at the call site.
+ */
+export function getUpcomingDays(
+  lat: number,
+  lon: number,
+  count: number,
+  from: Date = new Date(),
+): UpcomingDay[] {
+  const out: UpcomingDay[] = new Array(count)
+  for (let i = 0; i < count; i++) {
+    const d = new Date(from.getTime() + i * 86_400_000)
+    const times = SunCalc.getTimes(d, lat, lon)
+
+    let daylightSeconds: number
+    let isMidnightSun = false
+    let isPolarNight = false
+
+    if (!isValid(times.sunrise)) {
+      const pos = SunCalc.getPosition(d, lat, lon)
+      const elevationDeg = pos.altitude * (180 / Math.PI)
+      if (elevationDeg > 0) {
+        daylightSeconds = 86400
+        isMidnightSun = true
+      } else {
+        daylightSeconds = 0
+        isPolarNight = true
+      }
+    } else if (isValid(times.sunset)) {
+      daylightSeconds = (times.sunset.getTime() - times.sunrise.getTime()) / 1000
+    } else {
+      daylightSeconds = 0
+    }
+
+    out[i] = {
+      date: d,
+      sunrise: times.sunrise,
+      sunset: times.sunset,
+      daylightSeconds,
+      isMidnightSun,
+      isPolarNight,
+    }
+  }
+  return out
+}
+
+export interface DaylightTrend {
+  /** Signed seconds, today → tomorrow (+ = getting longer). */
+  tomorrowDeltaSeconds: number
+  /** Signed seconds, today → +7 days. */
+  weeklyDeltaSeconds: number
+  direction: 'lengthening' | 'shortening' | 'flat'
+  /** One-line interpretive readout — the "planner", not "database", value. */
+  sentence: string
+}
+
+/**
+ * Turn a daylight series into a human trend readout. Needs at least 8 entries
+ * (today + 7) for the weekly figure; falls back gracefully if shorter.
+ */
+export function buildDaylightTrend(days: UpcomingDay[]): DaylightTrend {
+  const today = days[0]
+  const tomorrow = days[1] ?? today
+  const plusWeek = days[7] ?? days[days.length - 1] ?? today
+
+  const tomorrowDeltaSeconds = tomorrow.daylightSeconds - today.daylightSeconds
+  const weeklyDeltaSeconds = plusWeek.daylightSeconds - today.daylightSeconds
+
+  if (today.isMidnightSun) {
+    return {
+      tomorrowDeltaSeconds,
+      weeklyDeltaSeconds,
+      direction: 'flat',
+      sentence: 'Midnight sun — the sun never sets, so daylight stays at a full 24 hours.',
+    }
+  }
+  if (today.isPolarNight) {
+    return {
+      tomorrowDeltaSeconds,
+      weeklyDeltaSeconds,
+      direction: 'flat',
+      sentence: 'Polar night — the sun stays below the horizon, so there is no direct daylight.',
+    }
+  }
+
+  const weeklyMin = Math.round(Math.abs(weeklyDeltaSeconds) / 60)
+  if (weeklyMin < 1) {
+    return {
+      tomorrowDeltaSeconds,
+      weeklyDeltaSeconds,
+      direction: 'flat',
+      sentence: 'Daylight is barely changing right now — under a minute over the next week.',
+    }
+  }
+
+  const lengthening = weeklyDeltaSeconds > 0
+  return {
+    tomorrowDeltaSeconds,
+    weeklyDeltaSeconds,
+    direction: lengthening ? 'lengthening' : 'shortening',
+    sentence: lengthening
+      ? `Days are getting longer — about ${weeklyMin} min more daylight over the next week.`
+      : `Days are getting shorter — about ${weeklyMin} min less daylight over the next week.`,
+  }
 }

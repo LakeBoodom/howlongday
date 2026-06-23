@@ -7,6 +7,7 @@ import { Logo } from '@/components/Logo'
 import { HeroSky } from '@/components/HeroSky'
 import { DataCards } from '@/components/DataCards'
 import { SecondaryRow } from '@/components/SecondaryRow'
+import { NextDays } from '@/components/NextDays'
 import { SeoSection } from '@/components/SeoSection'
 import { DaylightProfile } from '@/components/DaylightProfile'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
@@ -66,18 +67,29 @@ export async function generateMetadata(
   const sunrise = formatLocalTime(snap.sunrise, city.timezone)
   const sunset = formatLocalTime(snap.sunset, city.timezone)
   const daylight = formatDuration(snap.daylightSeconds)
-  const desc = snap.isMidnightSun
-    ? `${city.name}, ${city.country} is in midnight sun — daylight all 24 hours today.`
+  // Data-rich, absolute title (no "| HowLongDay" suffix) — the live daylight
+  // figure makes it specific and CTR-worthy and keeps it fresh on each render.
+  const title = snap.isMidnightSun
+    ? `${city.name} Today – Midnight Sun & Daylight Hours`
     : snap.isPolarNight
-    ? `${city.name}, ${city.country} is in polar night — the sun does not rise today.`
-    : `Today in ${city.name}, ${city.country}: sunrise ${sunrise}, sunset ${sunset}. Daylight ${daylight}.`
+    ? `${city.name} Today – Polar Night & Daylight Hours`
+    : `Sunrise & Sunset in ${city.name} Today – ${daylight} of Daylight`
+
+  // Description leads with concrete numbers (CTR) and signals the planner depth
+  // (golden hour, 7-day forecast) that the SERP instant answer cannot show.
+  const desc = snap.isMidnightSun
+    ? `${city.name} is in midnight sun — daylight all 24 hours today. Track golden hour, how daylight is changing and a 7-day forecast, in ${city.timezone} time.`
+    : snap.isPolarNight
+    ? `${city.name} is in polar night — the sun does not rise today. See when daylight returns, plus golden hour and a 7-day forecast, in ${city.timezone} time.`
+    : `${city.name} today: sunrise ${sunrise}, sunset ${sunset}, ${daylight} of daylight. Plus golden hour, blue hour and a 7-day daylight forecast — ${city.timezone} time.`
+
   const canonical = `https://howlongday.com/${city.slug}`
   return {
-    title: `${city.name} Sunrise & Sunset Times Today`,
+    title: { absolute: title },
     description: desc,
     alternates: { canonical },
     openGraph: {
-      title: `${city.name} sunrise & sunset today`,
+      title,
       description: desc,
       url: canonical,
       type: 'website',
@@ -249,6 +261,8 @@ export default function CityPage({ params }: { params: Params }) {
           </div>
         </div>
       </HeroSky>
+
+      <NextDays city={city} />
 
       {showMonthBrowser && monthSummaries && (
         <MonthBrowser
