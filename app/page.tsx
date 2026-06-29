@@ -116,6 +116,77 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Explore destinations & guides — prominent cards */}
+      <section className="border-t border-white/5 bg-bg-deepest">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
+            Explore destinations &amp; guides
+          </p>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Link
+              href="/guides/lapland-arctic-north"
+              className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-6 transition hover:border-white/25"
+            >
+              <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-daylight">
+                50 destinations · FI · SE · NO
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-white">
+                Lapland &amp; the Arctic North →
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-neutral-2">
+                Midnight sun, polar night and aurora season for Levi, Åre,
+                Abisko, Lofoten, Svalbard and 45 more northern spots.
+              </p>
+            </Link>
+            <Link
+              href="/guides/best-time-to-visit-us-national-parks"
+              className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-6 transition hover:border-white/25"
+            >
+              <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-daylight">
+                18 parks · daylight planner
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-white">
+                Best time to visit US national parks →
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-neutral-2">
+                Daylight hours, golden hour and the best season for Yosemite,
+                the Grand Canyon, Zion, Yellowstone and more.
+              </p>
+            </Link>
+            <Link
+              href="/guides/best-cities-for-long-summer-evenings"
+              className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-6 transition hover:border-white/25"
+            >
+              <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-daylight">
+                Europe · ranked
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-white">
+                Best cities for long summer evenings →
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-neutral-2">
+                Where the summer sun stays up latest — from Nordic white nights
+                to the late Mediterranean dusk.
+              </p>
+            </Link>
+            <Link
+              href="/guides/longest-day-around-the-world"
+              className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-6 transition hover:border-white/25"
+            >
+              <p className="text-[0.7rem] font-medium uppercase tracking-widecaps text-daylight">
+                Global · solstice
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-white">
+                The longest day around the world →
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-neutral-2">
+                How the longest day of the year compares from the Arctic to the
+                equator and the far south.
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Live snapshot — detects user location client-side, falls back to Helsinki */}
       <LocalSnapshot
         defaultCity={{
@@ -194,36 +265,6 @@ export default function Home() {
                 {c.name.replace(/^the /, '')}
               </Link>
             ))}
-          </div>
-
-          <p className="mt-10 text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
-            Guides
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              href="/guides/longest-day-around-the-world"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
-            >
-              The longest day around the world →
-            </Link>
-            <Link
-              href="/guides/best-cities-for-long-summer-evenings"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
-            >
-              Best cities for long summer evenings →
-            </Link>
-            <Link
-              href="/guides/best-time-to-visit-us-national-parks"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
-            >
-              Best time to visit US national parks →
-            </Link>
-            <Link
-              href="/guides/lapland-arctic-north"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
-            >
-              Lapland &amp; the Arctic North →
-            </Link>
           </div>
         </div>
       </section>
