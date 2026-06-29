@@ -8,6 +8,7 @@ import { HeroSky } from '@/components/HeroSky'
 import { DataCards } from '@/components/DataCards'
 import { SecondaryRow } from '@/components/SecondaryRow'
 import { NextDays } from '@/components/NextDays'
+import { MoonPanel } from '@/components/MoonPanel'
 import { SeoSection } from '@/components/SeoSection'
 import { DaylightProfile } from '@/components/DaylightProfile'
 import { YearlyDaylight } from '@/components/YearlyDaylight'
@@ -270,6 +271,8 @@ export default function CityPage({ params }: { params: Params }) {
       </HeroSky>
 
       <NextDays city={city} />
+
+      <MoonPanel city={city} snap={snap} />
 
       {showMonthBrowser && monthSummaries && (
         <MonthBrowser
