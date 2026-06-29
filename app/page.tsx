@@ -218,6 +218,12 @@ export default function Home() {
             >
               Best time to visit US national parks →
             </Link>
+            <Link
+              href="/guides/lapland-arctic-north"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+            >
+              Lapland &amp; the Arctic North →
+            </Link>
           </div>
         </div>
       </section>
