@@ -43,14 +43,10 @@ export default function NationalParksGuide() {
       shortName: p.shortName,
       state: p.state,
       bestSeason: p.bestSeason,
+      daylightSeconds: snap.isMidnightSun ? 86_400 : snap.daylightSeconds,
       solsticeDaylight: snap.isMidnightSun ? '21h+ (near midnight sun)' : formatDuration(snap.daylightSeconds),
     }
-  }).sort((a, b) => {
-    // Sort by the numeric solstice daylight descending where possible.
-    const an = parseFloat(a.solsticeDaylight)
-    const bn = parseFloat(b.solsticeDaylight)
-    return (isNaN(bn) ? 99 : bn) - (isNaN(an) ? 99 : an)
-  })
+  }).sort((a, b) => b.daylightSeconds - a.daylightSeconds)
 
   return (
     <>
