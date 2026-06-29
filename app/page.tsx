@@ -212,6 +212,12 @@ export default function Home() {
             >
               Best cities for long summer evenings →
             </Link>
+            <Link
+              href="/guides/best-time-to-visit-us-national-parks"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
+            >
+              Best time to visit US national parks →
+            </Link>
           </div>
         </div>
       </section>

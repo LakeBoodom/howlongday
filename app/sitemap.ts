@@ -22,10 +22,12 @@ import type { MetadataRoute } from 'next'
 import { getTopCities } from '@/lib/cities'
 import { MONTHS } from '@/lib/months'
 import { COUNTRY_HUBS } from '@/lib/countries'
+import { NATIONAL_PARKS } from '@/lib/parks'
 
 const GUIDE_SLUGS = [
   'longest-day-around-the-world',
   'best-cities-for-long-summer-evenings',
+  'best-time-to-visit-us-national-parks',
 ]
 
 const BASE = 'https://howlongday.com'
@@ -77,6 +79,12 @@ export default async function sitemap(
       })),
       ...GUIDE_SLUGS.map((slug) => ({
         url: `${BASE}/guides/${slug}`,
+        lastModified: today,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      })),
+      ...NATIONAL_PARKS.map((p) => ({
+        url: `${BASE}/parks/${p.slug}`,
         lastModified: today,
         changeFrequency: 'monthly' as const,
         priority: 0.7,
