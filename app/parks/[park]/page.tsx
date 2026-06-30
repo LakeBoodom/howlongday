@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Logo } from '@/components/Logo'
+import { MoonPanel } from '@/components/MoonPanel'
 import { MONTHS } from '@/lib/months'
 import { getParkBySlug } from '@/lib/parks'
 import {
@@ -224,6 +225,17 @@ export default function ParkPage({ params }: { params: Params }) {
             </p>
           )}
         </div>
+
+        {/* Moon & stargazing tonight */}
+        <MoonPanel
+          lat={park.lat}
+          lon={park.lon}
+          timezone={park.timezone}
+          snap={snap}
+          auroraZone={park.lat >= 60}
+          embedded
+          heading="Moon & stargazing tonight"
+        />
 
         {/* Internal links */}
         <div className="mt-12 rounded-card border border-white/10 bg-white/[0.03] p-6">

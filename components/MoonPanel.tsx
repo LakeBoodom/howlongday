@@ -1,101 +1,108 @@
 /**
- * Moon + stargazing panel for city pages.
+ * Moon + stargazing (and, in aurora zones, aurora) panel.
  *
  * Two server-rendered sections (crawlable depth, no client JS):
  *  1. "Moon tonight" — phase, illuminated %, moonrise/moonset, next full moon.
- *  2. "Stargazing tonight" — the true-darkness window (astronomical night) plus
- *     a moon-interference readout and a plain-language verdict.
+ *  2. "Stargazing tonight" / "Stargazing & aurora tonight" — the true-darkness
+ *     window (astronomical night), a moon-interference readout, and a plain
+ *     verdict. In aurora zones (high latitude) the copy speaks to the northern
+ *     lights, since dark + clear + low-moon is exactly the aurora condition.
  *
- * Cheap: a handful of SunCalc moon calls; the full/new-moon dates are a static
- * table (lib/moon). Reuses the already-computed solar snapshot for the twilight
- * window so no extra sun compute is needed.
+ * Generic over location (city, national park, Arctic destination): pass
+ * lat/lon/timezone plus the already-computed solar snapshot so no extra sun
+ * compute is needed.
  */
 
-import type { City } from '@/lib/cities'
 import { type SolarSnapshot, formatLocalTime } from '@/lib/astronomy'
 import { getMoonSnapshot, moonAltitudeDeg, nextFullMoon } from '@/lib/moon'
 
 interface Props {
-  city: City
+  lat: number
+  lon: number
+  timezone: string
   snap: SolarSnapshot
+  /** High-latitude location where the aurora is a realistic draw. */
+  auroraZone?: boolean
+  /** Render inside a content article (no own max-width/padding) with a heading. */
+  embedded?: boolean
+  /** Section heading shown in embedded mode. */
+  heading?: string
 }
 
 function pct(fraction: number): string {
   return `${Math.round(fraction * 100)}%`
 }
 
-export function MoonPanel({ city, snap }: Props) {
+function isValid(d: Date): boolean {
+  return d instanceof Date && !isNaN(d.getTime())
+}
+
+export function MoonPanel({ lat, lon, timezone: tz, snap, auroraZone = false, embedded = false, heading }: Props) {
   const now = new Date()
-  const moon = getMoonSnapshot(now, city.lat, city.lon)
+  const moon = getMoonSnapshot(now, lat, lon)
   const full = nextFullMoon(now)
 
-  const tz = city.timezone
-  const moonrise = moon.alwaysUp
-    ? 'Up all day'
-    : moon.alwaysDown
-      ? 'Below horizon'
-      : formatLocalTime(moon.moonrise, tz)
-  const moonset = moon.alwaysUp
-    ? 'Up all day'
-    : moon.alwaysDown
-      ? '—'
-      : formatLocalTime(moon.moonset, tz)
+  const moonrise = moon.alwaysUp ? 'Up all day' : moon.alwaysDown ? 'Below horizon' : formatLocalTime(moon.moonrise, tz)
+  const moonset = moon.alwaysUp ? 'Up all day' : moon.alwaysDown ? '—' : formatLocalTime(moon.moonset, tz)
 
-  // --- Stargazing: darkness window + moon interference --------------------
+  // --- Darkness window + moon interference --------------------------------
   const hasAstroDark = !snap.isMidnightSun && isValid(snap.night) && isValid(snap.nightEnd)
   const darkStart = formatLocalTime(snap.night, tz)
   const darkEnd = formatLocalTime(snap.nightEnd, tz)
-
-  // Sample the moon at the start of astronomical night (or now) to judge whether
-  // moonlight will wash out the sky during the dark window.
   const sampleInstant = hasAstroDark && isValid(snap.night) ? snap.night : now
-  const moonUpDuringDark = moonAltitudeDeg(sampleInstant, city.lat, city.lon) > 0
+  const moonUpDuringDark = moonAltitudeDeg(sampleInstant, lat, lon) > 0
   const brightMoon = moon.illumination >= 0.6
   const dimMoon = moon.illumination <= 0.3
 
+  const subject = auroraZone ? 'aurora' : 'the night sky'
+  const title = auroraZone ? 'Stargazing & aurora tonight' : 'Stargazing tonight'
+
   let darkWindow: string
   let verdict: string
-  let moonNote: string
+  let note: string
 
   if (snap.isMidnightSun) {
     darkWindow = 'No darkness — midnight sun'
     verdict = 'Not tonight'
-    moonNote = 'The sky never gets dark enough for stars at this time of year.'
+    note = auroraZone
+      ? 'The midnight sun keeps the sky bright around the clock — the aurora can’t be seen until the dark nights return in autumn.'
+      : 'The sky never gets dark enough for stars at this time of year.'
   } else if (snap.isPolarNight) {
     darkWindow = 'Dark all day — polar night'
-    verdict = moonUpDuringDark && brightMoon ? 'Bright moon' : 'Excellent'
-    moonNote = moonUpDuringDark && brightMoon
-      ? `The moon is up and ${pct(moon.illumination)} lit, which will brighten the sky.`
-      : `Long, dark nights — and the moon is ${pct(moon.illumination)} lit, so the sky stays dark.`
+    verdict = brightMoon && moonUpDuringDark ? 'Bright moon' : 'Excellent'
+    note = auroraZone
+      ? (brightMoon && moonUpDuringDark
+          ? `Dark around the clock — prime aurora conditions, though a ${pct(moon.illumination)}-lit moon will brighten the sky.`
+          : `Dark around the clock — prime aurora hunting whenever the skies are clear, and the moon is only ${pct(moon.illumination)} lit.`)
+      : `Polar night — long, dark hours, with the moon ${pct(moon.illumination)} lit.`
   } else if (!hasAstroDark) {
     darkWindow = 'No true darkness tonight'
     verdict = 'Limited'
-    moonNote = 'The sun stays close to the horizon all night, so the sky only reaches twilight — faint objects stay hidden.'
+    note = auroraZone
+      ? 'The sky only reaches twilight tonight — still a touch too light for the aurora. It sharpens as the nights draw in.'
+      : 'The sun stays close to the horizon all night, so the sky only reaches twilight — faint objects stay hidden.'
   } else {
     darkWindow = `${darkStart} – ${darkEnd}`
     if (!moonUpDuringDark) {
       verdict = 'Good'
-      moonNote = `The moon is below the horizon at the start of the dark window, so it won't wash out the sky — a good night for faint stars.`
+      note = `The moon is below the horizon at the start of the dark window, so it won’t wash out the sky — a good night for ${subject} when skies are clear.`
     } else if (dimMoon) {
       verdict = 'Good'
-      moonNote = `The moon is up but only ${pct(moon.illumination)} lit, so moonlight stays low.`
+      note = `The moon is up but only ${pct(moon.illumination)} lit, so moonlight stays low — good for ${subject} on a clear night.`
     } else if (brightMoon) {
       verdict = 'Bright moon'
-      moonNote = `A bright moon (${pct(moon.illumination)} lit) is up during the dark window, washing out fainter stars.`
+      note = `A bright moon (${pct(moon.illumination)} lit) is up during the dark window, washing out fainter ${auroraZone ? 'aurora and stars' : 'stars'}.`
     } else {
       verdict = 'Fair'
-      moonNote = `The moon is up and ${pct(moon.illumination)} lit — some moonlight, but brighter stars and planets show well.`
+      note = `The moon is up and ${pct(moon.illumination)} lit — some moonlight, but ${auroraZone ? 'a strong aurora still shows well' : 'brighter stars and planets show well'}.`
     }
   }
 
-  return (
-    <section className="mx-auto mt-4 max-w-5xl px-6">
+  const grid = (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Moon tonight */}
         <div className="rounded-card border border-white/10 bg-white/[0.03] p-6">
-          <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
-            Moon tonight
-          </div>
+          <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">Moon tonight</div>
           <div className="mt-3 flex items-baseline gap-3">
             <span className="text-2xl font-semibold text-white">{moon.phaseName}</span>
             <span className="text-sm text-neutral-3 tabular-nums">{pct(moon.illumination)} lit</span>
@@ -118,32 +125,32 @@ export function MoonPanel({ city, snap }: Props) {
           )}
         </div>
 
-        {/* Stargazing tonight */}
+        {/* Stargazing / aurora tonight */}
         <div className="rounded-card border border-white/10 bg-white/[0.03] p-6">
           <div className="flex items-center justify-between">
-            <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">
-              Stargazing tonight
-            </div>
-            <span className="rounded-full border border-white/15 px-3 py-0.5 text-xs font-medium text-daylight">
-              {verdict}
-            </span>
+            <div className="text-[0.7rem] font-medium uppercase tracking-widecaps text-neutral-3">{title}</div>
+            <span className="rounded-full border border-white/15 px-3 py-0.5 text-xs font-medium text-daylight">{verdict}</span>
           </div>
           <div className="mt-3">
             <div className="text-[0.7rem] uppercase tracking-widecaps text-neutral-4">Dark-sky window</div>
             <div className="mt-1 text-lg font-semibold tabular-nums text-white">{darkWindow}</div>
             {hasAstroDark && (
-              <div className="mt-0.5 text-xs text-neutral-4">
-                Astronomical night — the sun is more than 18° below the horizon.
-              </div>
+              <div className="mt-0.5 text-xs text-neutral-4">Astronomical night — the sun is more than 18° below the horizon.</div>
             )}
           </div>
-          <p className="mt-4 text-sm leading-relaxed text-neutral-2">{moonNote}</p>
+          <p className="mt-4 text-sm leading-relaxed text-neutral-2">{note}</p>
         </div>
       </div>
-    </section>
   )
-}
 
-function isValid(d: Date): boolean {
-  return d instanceof Date && !isNaN(d.getTime())
+  if (embedded) {
+    return (
+      <div className="mt-12">
+        {heading && <h2 className="mb-5 text-xl font-semibold text-white">{heading}</h2>}
+        {grid}
+      </div>
+    )
+  }
+
+  return <section className="mx-auto mt-4 max-w-5xl px-6">{grid}</section>
 }

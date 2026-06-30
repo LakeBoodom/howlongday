@@ -272,7 +272,13 @@ export default function CityPage({ params }: { params: Params }) {
 
       <NextDays city={city} />
 
-      <MoonPanel city={city} snap={snap} />
+      <MoonPanel
+        lat={city.lat}
+        lon={city.lon}
+        timezone={city.timezone}
+        snap={snap}
+        auroraZone={Math.abs(city.lat) >= 64}
+      />
 
       {showMonthBrowser && monthSummaries && (
         <MonthBrowser

@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { Logo } from '@/components/Logo'
+import { MoonPanel } from '@/components/MoonPanel'
 import { MONTHS } from '@/lib/months'
 import { getArcticBySlug } from '@/lib/arctic'
 import {
@@ -148,6 +149,17 @@ export default function NorthPage({ params }: { params: Params }) {
             </div>
           </div>
         </div>
+
+        {/* Moon, stargazing & aurora tonight */}
+        <MoonPanel
+          lat={d.lat}
+          lon={d.lon}
+          timezone={d.timezone}
+          snap={snap}
+          auroraZone={Boolean(d.auroraSeason)}
+          embedded
+          heading="Moon, stargazing & aurora tonight"
+        />
 
         {/* When to visit */}
         <div className="mt-12">
