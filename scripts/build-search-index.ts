@@ -44,6 +44,7 @@ const TOP_N = 5000
  */
 const EXTRA_SLUGS = [
   'ristiina', // Heikki spends a lot of time there
+  'moorea', // Personally important place to Heikki
 ]
 
 const root = process.cwd()
