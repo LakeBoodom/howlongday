@@ -5,8 +5,15 @@
  * {Month}" — a high-volume long-tail query. We render a day-by-day calendar
  * grid, summary stats (average / longest / shortest day), and FAQPage JSON-LD.
  *
- * Build strategy: top 1000 cities × 12 months = 12,000 prebuilt pages.
- * Remaining city/month combinations render on-demand via ISR (revalidate=30d).
+ * Rendering strategy: force-dynamic, same as /[city]. Previously this route
+ * prebuilt top-1000-cities × 12-months = 12,000 static/ISR functions. Each
+ * function bundles the full server runtime, at ~4.7MB apiece — 12,000 of them
+ * added up to ~56GB of Deployment Storage PER DEPLOYMENT (this is separate
+ * from and much larger than the ISR Writes/mo budget the original comment
+ * accounted for), which alone blew through the team's Hobby-plan storage
+ * quota after only a couple of deployments were retained. The content here
+ * is cheap to compute per-request (a handful of SunCalc calls, same as
+ * /[city]), so there is no need to precompute or cache it at all.
  */
 
 import type { Metadata } from 'next'
@@ -18,7 +25,7 @@ import { MonthCalendar } from '@/components/MonthCalendar'
 import { MonthBrowser } from '@/components/MonthBrowser'
 import { FaqAccordion, type FaqEntry } from '@/components/FaqAccordion'
 
-import { getCityBySlug, getTopCities, isTopCity } from '@/lib/cities'
+import { getCityBySlug, isTopCity } from '@/lib/cities'
 import { MONTHS, getMonthBySlug, firstWeekday as monthFirstWeekday } from '@/lib/months'
 import {
   getMonthlyDaylight,
@@ -29,29 +36,17 @@ import {
 } from '@/lib/astronomy'
 import { getSkyGradient } from '@/lib/sky'
 
-// 30-day ISR — monthly daylight stats are essentially year-bound and don't
-// change within a month. The "today" highlight on the current month can lag
-// by up to 30 days (acceptable trade-off vs. ISR Writes cost). New cities
-// outside the prebuilt 1,200 still render on first request.
-export const revalidate = 2592000
+// Dynamic server rendering — no prebuilt/ISR functions at all, so Deployment
+// Storage no longer scales with cities × months. Per-request cost is a
+// handful of SunCalc calls (same order as /[city]), which is cheap; this
+// also makes the "today" highlight always exactly correct instead of lagging
+// behind a 30-day ISR revalidation window.
+export const dynamic = 'force-dynamic'
 
 interface Params {
   city: string
   month: string
 }
-
-export async function generateStaticParams() {
-  const topCities = getTopCities(1000)
-  const params: Array<{ city: string; month: string }> = []
-  for (const c of topCities) {
-    for (const m of MONTHS) {
-      params.push({ city: c.slug, month: m.slug })
-    }
-  }
-  return params
-}
-
-export const dynamicParams = true
 
 // ----- Metadata -------------------------------------------------------------
 
@@ -383,18 +378,15 @@ export default function CityMonthPage({ params }: { params: Params }) {
 
   // Cross-month navigation visibility.
   //
-  // Shown for the top-1000 SSG-prebuilt city set. For the ~48k tail cities
-  // we hide both the chips and the 12-tile strip — letting Googlebot walk
-  // chains from a tail-city month page would multiply ISR cost by 12× per
-  // discovered city. Users typing a month URL directly still get the page.
-  //
-  // For top-1000 cities the math is bounded: ~10,800 potential month-page
-  // ISR writes (10,800 = top-101..1000 × 12 months), revalidated every 30d,
-  // well within Vercel's free-tier 200k/month limit.
+  // Shown only for the top-1000 city set. For the ~48k tail cities we hide
+  // both the chips and the 12-tile strip — letting Googlebot walk chains
+  // from a tail-city month page would multiply crawl volume by 12× per
+  // discovered city. Users typing a month URL directly still get the page
+  // (all pages render on-demand now — see the `force-dynamic` note above).
   const cityIsPrebuilt = isTopCity(city.slug, 1000)
   // Adjacent months — always computed for the comparison block below. Links to
-  // them are still gated to the prebuilt set (see below) so crawlers don't walk
-  // 12 ISR month pages per tail city.
+  // them are still gated to the top-1000 set (see below) so crawlers don't
+  // walk 12 month pages per tail city.
   const prevMonth = MONTHS[(month.index + 11) % 12]
   const nextMonth = MONTHS[(month.index + 1) % 12]
 
